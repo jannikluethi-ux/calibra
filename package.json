@@ -1,0 +1,42 @@
+{
+  "name": "global-financial-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3456",
+    "build": "next build",
+    "start": "next start -p 3456",
+    "lint": "next lint",
+    "seed": "npx tsx scripts/seed.ts",
+    "reclassify": "npx tsx scripts/reclassify-v2.ts"
+  },
+  "dependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^11.7.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "lucide-react": "^1.48.0",
+    "next": "14.2.35",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-force-graph-2d": "^1.29.1",
+    "recharts": "^3.10.1",
+    "rss-parser": "^3.13.0",
+    "uuid": "^14.0.2",
+    "yahoo-finance2": "^2.13.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@types/uuid": "^11.0.0",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,58 @@
+# Calibra
+
+**Calibra** is probabilistic market intelligence: event detection, transmission modeling, and scenario probabilities that update as evidence changes. It is a research / intelligence tool — **not** investment advice and not a prediction machine.
+
+Prefer being uncertain over confidently wrong. Demo, cached, and proxy figures are labeled.
+
+> **Private proprietary repository.** Do not redistribute. See [LICENSE](LICENSE).
+
+## Quick start
+
+```bash
+npm install
+npm run dev          # http://localhost:3456
+```
+
+Production:
+
+```bash
+npm run build
+npm start            # port 3456
+```
+
+Copy [`.env.example`](.env.example) to `.env.local` if you need SMTP, Stripe, or scheduler overrides. Local demos run without secrets.
+
+## Demo accounts (local)
+
+| Email | Password | Plan |
+|-------|----------|------|
+| `pro@calibra.local` | `calibra-pro-demo` | Pro |
+| `free@calibra.local` | `calibra-free-demo` | Free |
+
+Shown on `/login` and `/pricing` for local demos only.
+
+## Data model
+
+- **Yahoo Finance** public chart API → market snapshots / history (paced; demo fallback if rate-limited)
+- **Public RSS** (Fed/ECB/IMF/Reuters/CNBC, etc.) → event ingest + heuristic classification
+- Persistence in **SQLite** at `data/gfi.db` (gitignored; created at runtime)
+- In-app **scheduler** (Europe/Zurich session hours): markets, events, derive, maintenance — default on; disable with `CALIBRA_SCHEDULER=0`
+
+Manual full refresh: Status bar **Refresh data**, or `POST /api/refresh`.
+
+## Docs
+
+- [docs/SCHEDULER.md](docs/SCHEDULER.md) — job cadence, soft toggle, noteworthy rules
+- [docs/MONETIZATION.md](docs/MONETIZATION.md) — Free / Pro / API packaging draft (internal)
+
+## Stack
+
+Next.js 14 (App Router) · TypeScript · Tailwind · SQLite (`better-sqlite3`) · Recharts / force-graph · dark terminal UI
+
+## Safety
+
+Simulations ≠ forecasts ≠ facts. No buy/sell recommendations. Epistemic labels separate observed fact, interpretation, model assumption, and scenario estimate.
+
+## License
+
+Proprietary — All Rights Reserved (2026). Private commercial use of this repo by others without permission is forbidden.
