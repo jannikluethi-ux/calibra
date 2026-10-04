@@ -2,7 +2,7 @@ import Parser from "rss-parser";
 import { randomUUID } from "crypto";
 import type { FinancialEvent, DataQuality, SourceTier } from "../types";
 import { classifyEventV2, reclassifyEventV2 } from "../classification/classify_v2";
-import { getDb, upsertJson, setMeta, getJsonAll } from "../db";
+import { getDb, upsertJson, setMeta } from "../db";
 
 const parser = new Parser({
   timeout: 12000,
@@ -318,7 +318,13 @@ export async function ingestRssFeeds(): Promise<{ live: number; demo: number; ev
 }
 
 export function getEvents(limit = 100): FinancialEvent[] {
-  return getJsonAll<FinancialEvent>("events", "published_at DESC").slice(0, limit);
+  // Same order as the previous full-table load + slice. LIMIT avoids parsing
+  // every stored event (thousands of rows) on each dashboard read.
+  const n = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 100;
+  const rows = getDb()
+    .prepare(`SELECT data FROM events ORDER BY published_at DESC LIMIT ?`)
+    .all(n) as { data: string }[];
+  return rows.map((r) => JSON.parse(r.data) as FinancialEvent);
 }
 
 export function getEvent(id: string): FinancialEvent | null {

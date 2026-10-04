@@ -18,11 +18,11 @@ const HORIZONS: { id: MoverHorizon; label: string }[] = [
 function ScoreBar({ score, side }: { score: number; side: MoverSide }) {
   const color = side === "up" ? "bg-terminal-teal" : "bg-terminal-amber";
   return (
-    <div className="flex items-center gap-2 min-w-[88px]">
-      <div className="flex-1 h-1.5 bg-terminal-border/80 rounded overflow-hidden">
-        <div className={clsx("h-full rounded", color)} style={{ width: `${Math.min(100, score)}%` }} />
+    <div className="flex items-center gap-2 min-w-[96px]">
+      <div className="flex-1 h-1.5 bg-terminal-border/80 rounded-full overflow-hidden">
+        <div className={clsx("h-full rounded-full", color)} style={{ width: `${Math.min(100, score)}%` }} />
       </div>
-      <span className="num text-xs font-semibold w-7 text-right">{score}</span>
+      <span className="num text-sm font-semibold w-8 text-right">{score}</span>
     </div>
   );
 }
@@ -36,7 +36,7 @@ function MoverCard({ row, side, expanded, onToggle }: {
   return (
     <div
       className={clsx(
-        "border rounded-md transition-all",
+        "border rounded-lg transition-colors",
         side === "up"
           ? "border-terminal-teal/20 hover:border-terminal-teal/45 bg-terminal-surface/80"
           : "border-terminal-amber/20 hover:border-terminal-amber/45 bg-terminal-surface/80",
@@ -46,11 +46,11 @@ function MoverCard({ row, side, expanded, onToggle }: {
       <button
         type="button"
         onClick={onToggle}
-        className="w-full text-left px-3 py-2.5 flex items-start gap-3"
+        className="w-full text-left px-3.5 py-3 flex items-start gap-3"
       >
         <div
           className={clsx(
-            "num text-xs font-semibold w-5 shrink-0 mt-0.5",
+            "num text-sm font-semibold w-5 shrink-0 mt-0.5",
             side === "up" ? "text-terminal-teal" : "text-terminal-amber"
           )}
         >
@@ -61,7 +61,7 @@ function MoverCard({ row, side, expanded, onToggle }: {
             <Link
               href={row.href}
               onClick={(e) => e.stopPropagation()}
-              className="text-xs font-semibold text-terminal-accent hover:underline"
+              className="text-sm font-semibold text-terminal-accent hover:underline"
             >
               {row.symbol}
             </Link>
@@ -69,7 +69,7 @@ function MoverCard({ row, side, expanded, onToggle }: {
             <QualityBadge quality={row.isProxy ? "proxy" : row.dataQuality} />
             {row.insufficientEvidence && <Badge tone="amber">thin evidence</Badge>}
           </div>
-          <div className="flex items-center gap-3 mt-1.5 flex-wrap text-2xs">
+          <div className="flex items-center gap-x-3 gap-y-1 mt-1.5 flex-wrap text-xs">
             <span className="num text-terminal-text">{fmtNum(row.lastPrice, row.category === "fx" || row.category === "rates" ? 3 : 2)}</span>
             <span className={clsx("num", changeColor(row.periodChangePct))}>
               {fmtPct(row.periodChangePct)} <span className="text-terminal-muted">obs.</span>
@@ -99,7 +99,7 @@ function MoverCard({ row, side, expanded, onToggle }: {
       </button>
 
       {expanded && (
-        <div className="px-3 pb-3 pt-0 border-t border-terminal-border/50 space-y-2 text-2xs">
+        <div className="px-3.5 pb-3.5 pt-0 border-t border-terminal-border/60 space-y-2.5 text-xs">
           <div>
             <div className="text-terminal-teal uppercase tracking-wider mb-0.5 mt-2">Evidence</div>
             <p className="text-terminal-dim leading-relaxed">{row.evidence}</p>
@@ -193,14 +193,14 @@ export function MoversBoard({
           </button>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <div className="flex rounded border border-terminal-border overflow-hidden">
+          <div className="flex rounded-md border border-terminal-border overflow-hidden">
             {HORIZONS.map((h) => (
               <button
                 key={h.id}
                 type="button"
                 onClick={() => setHorizon(h.id)}
                 className={clsx(
-                  "px-2 py-1 text-2xs transition-colors",
+                  "px-2.5 py-1.5 text-2xs transition-colors",
                   horizon === h.id
                     ? "bg-terminal-teal/15 text-terminal-teal"
                     : "text-terminal-dim hover:text-terminal-text hover:bg-terminal-surface"
@@ -210,12 +210,12 @@ export function MoversBoard({
               </button>
             ))}
           </div>
-          <div className="flex rounded border border-terminal-border overflow-hidden">
+          <div className="flex rounded-md border border-terminal-border overflow-hidden">
             <button
               type="button"
               onClick={() => setSide("up")}
               className={clsx(
-                "px-2 py-1 text-2xs",
+                "px-2.5 py-1.5 text-2xs",
                 side === "up" ? "bg-terminal-teal/20 text-terminal-teal" : "text-terminal-dim hover:text-terminal-text"
               )}
             >
@@ -225,7 +225,7 @@ export function MoversBoard({
               type="button"
               onClick={() => setSide("down")}
               className={clsx(
-                "px-2 py-1 text-2xs border-l border-terminal-border",
+                "px-2.5 py-1.5 text-2xs border-l border-terminal-border",
                 side === "down" ? "bg-terminal-amber/20 text-terminal-amber" : "text-terminal-dim hover:text-terminal-text"
               )}
             >
@@ -240,24 +240,24 @@ export function MoversBoard({
         </div>
       </div>
 
-      <div className="px-3 pt-2 pb-1">
-        <p className="text-2xs text-terminal-muted leading-relaxed">{hint}</p>
+      <div className="px-4 pt-3 pb-1">
+        <p className="text-xs text-terminal-muted leading-relaxed">{hint}</p>
         {showMethod && data && (
-          <div className="mt-2 p-2 rounded bg-terminal-bg/60 border border-terminal-border text-2xs text-terminal-dim whitespace-pre-wrap leading-relaxed">
+          <div className="mt-3 p-3 rounded-lg bg-terminal-bg/60 border border-terminal-border text-xs text-terminal-dim whitespace-pre-wrap leading-relaxed">
             {data.methodology}
           </div>
         )}
       </div>
 
-      <div className="p-3 pt-1 space-y-1.5">
+      <div className="p-3 sm:p-4 pt-2 space-y-2">
         {loading && !data && (
-          <div className="text-xs text-terminal-muted py-6 text-center">Loading elevated-probability ranking…</div>
+          <div className="loading-state">Loading elevated-probability ranking…</div>
         )}
         {err && (
-          <div className="text-xs text-terminal-red py-4">Failed to load movers: {err}</div>
+          <div className="empty-state text-terminal-red">Failed to load movers: {err}</div>
         )}
         {data && !data.rows.length && (
-          <div className="text-xs text-terminal-amber py-4">
+          <div className="empty-state">
             Insufficient evidence for this horizon — no instruments scored. Prefer omission over fake conviction.
           </div>
         )}
@@ -274,7 +274,7 @@ export function MoversBoard({
           <div className="text-2xs text-terminal-amber/90 pt-1">{data.truncatedNote}</div>
         )}
         {data && (
-          <div className="text-2xs text-terminal-muted pt-1 flex justify-between gap-2 flex-wrap">
+          <div className="text-2xs text-terminal-muted pt-1.5 flex justify-between gap-2 flex-wrap">
             <span>
               Scored {data.scoredCount}/{data.universeSize} · showing {data.rows.length}
               {loading ? " · refreshing…" : ""}

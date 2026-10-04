@@ -216,8 +216,16 @@ export function rebuildScenariosFromEvents(limit = 12): Scenario[] {
   return scenarios;
 }
 
-export function getScenarios(): Scenario[] {
-  return getJsonAll<Scenario>("scenarios", "created_at DESC");
+export function getScenarios(limit?: number): Scenario[] {
+  if (limit == null) {
+    return getJsonAll<Scenario>("scenarios", "created_at DESC");
+  }
+  // Optional cap matches getScenarios().slice(0, n) (created_at DESC).
+  const n = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0;
+  const rows = getDb()
+    .prepare(`SELECT data FROM scenarios ORDER BY created_at DESC LIMIT ?`)
+    .all(n) as { data: string }[];
+  return rows.map((r) => JSON.parse(r.data) as Scenario);
 }
 
 export function getScenario(id: string): Scenario | null {
@@ -225,5 +233,7 @@ export function getScenario(id: string): Scenario | null {
 }
 
 export function ensureScenarios() {
-  if (getScenarios().length === 0) rebuildScenariosFromEvents();
+  // Existence check only — do not parse the full scenarios table on every page view.
+  const row = getDb().prepare(`SELECT 1 AS ok FROM scenarios LIMIT 1`).get();
+  if (!row) rebuildScenariosFromEvents();
 }

@@ -7,61 +7,84 @@ import { brand } from "@/lib/brand";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 
-const NAV = [
-  { href: "/", label: "Dashboard" },
-  { href: "/movers", label: "Elevated Prob." },
-  { href: "/events", label: "Events" },
-  { href: "/scenarios", label: "Scenarios" },
-  { href: "/map", label: "Causal Map" },
-  { href: "/countries", label: "Countries" },
-  { href: "/assets", label: "Assets" },
-  { href: "/warnings", label: "Warnings" },
-  { href: "/forecasts", label: "Forecasts" },
-  { href: "/analyst", label: "AI Analyst" },
-  { href: "/simulator", label: "Simulator" },
-  { href: "/portfolio", label: "Portfolio" },
-  { href: "/alerts", label: "Alerts" },
-  { href: "/settings/scheduler", label: "Scheduler" },
-  { href: "/methodology", label: "Methodology" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/docs/api", label: "API Docs" },
+const GROUPS = [
+  {
+    label: "Desk",
+    items: [
+      { href: "/", label: "Dashboard" },
+      { href: "/movers", label: "Elevated Prob." },
+    ],
+  },
+  {
+    label: "Research",
+    items: [
+      { href: "/events", label: "Events" },
+      { href: "/scenarios", label: "Scenarios" },
+      { href: "/map", label: "Causal Map" },
+      { href: "/countries", label: "Countries" },
+      { href: "/assets", label: "Assets" },
+      { href: "/warnings", label: "Warnings" },
+      { href: "/forecasts", label: "Forecasts" },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { href: "/analyst", label: "AI Analyst" },
+      { href: "/simulator", label: "Simulator" },
+      { href: "/portfolio", label: "Portfolio" },
+      { href: "/alerts", label: "Alerts" },
+    ],
+  },
+  {
+    label: "Reference",
+    items: [
+      { href: "/settings/scheduler", label: "Scheduler" },
+      { href: "/methodology", label: "Methodology" },
+      { href: "/pricing", label: "Pricing" },
+      { href: "/docs/api", label: "API Docs" },
+    ],
+  },
 ];
 
 export function Sidebar() {
   const path = usePathname();
   return (
-    <aside className="w-52 shrink-0 border-r border-terminal-border bg-terminal-panel/95 flex flex-col backdrop-blur-sm">
-      <div className="px-3 py-3 border-b border-terminal-border bg-hero-glow">
-        <BrandMark size={30} showWordmark />
-        <div className="text-2xs text-terminal-muted mt-2 leading-snug line-clamp-2">
-          {brand.tagline}
-        </div>
+    <aside className="md:w-56 shrink-0 border-b md:border-b-0 md:border-r border-terminal-border bg-terminal-panel/95 flex flex-col backdrop-blur-sm max-h-[38vh] md:max-h-none md:h-full">
+      <div className="px-4 py-3.5 border-b border-terminal-border bg-hero-glow">
+        <BrandMark size={32} showWordmark />
       </div>
       <nav className="flex-1 py-2 overflow-y-auto">
-        {NAV.map((item) => {
-          const active = item.href === "/" ? path === "/" : path.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={clsx(
-                "block px-3 py-1.5 text-xs border-l-2 transition-colors",
-                active
-                  ? "border-terminal-teal bg-terminal-teal/10 text-terminal-text"
-                  : "border-transparent text-terminal-dim hover:text-terminal-text hover:bg-terminal-surface"
-              )}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
+        {GROUPS.map((group) => (
+          <div key={group.label} className="mb-1.5">
+            <div className="px-4 pt-2.5 pb-1 text-2xs uppercase tracking-wide text-terminal-muted">
+              {group.label}
+            </div>
+            {group.items.map((item) => {
+              const active = item.href === "/" ? path === "/" : path.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={clsx(
+                    "mx-2 mb-0.5 block rounded-md px-2.5 py-1.5 text-[13px] leading-5 transition-colors",
+                    active
+                      ? "bg-terminal-teal/12 text-terminal-text shadow-[inset_2px_0_0_0_#3dbeab]"
+                      : "text-terminal-dim hover:text-terminal-text hover:bg-terminal-surface"
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
-      <div className="px-3 py-2 border-t border-terminal-border space-y-2">
+      <div className="px-3.5 py-3 border-t border-terminal-border space-y-2.5 hidden md:block">
         <AccountMenu variant="sidebar" />
         <div className="text-2xs text-terminal-muted leading-relaxed">
           {brand.evidenceChain}
-          <br />
-          <span className="text-terminal-teal/70">{brand.philosophy}</span>
+          <div className="text-terminal-teal/80 mt-0.5">{brand.philosophy}</div>
         </div>
       </div>
     </aside>

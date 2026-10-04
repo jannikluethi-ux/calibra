@@ -13,6 +13,9 @@ npm install
 npm run dev          # http://localhost:3456
 ```
 
+If a machine reset removes `node_modules` (the app has gone down this way more than once), run `scripts/ensure-dev.sh`. It runs `npm install` only when `node_modules/next` is missing, then starts `npm run dev` on port 3456 if that port is free. It does not modify `data/` or product behavior.
+
+
 Production:
 
 ```bash

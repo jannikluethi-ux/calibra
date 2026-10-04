@@ -19,7 +19,7 @@ export function Panel({
           {right}
         </div>
       )}
-      <div className="p-3">{children}</div>
+      <div className="p-4">{children}</div>
     </section>
   );
 }

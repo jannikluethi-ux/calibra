@@ -8,6 +8,21 @@ import { brand } from "@/lib/brand";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 
+function shortStamp(iso: string | null | undefined): string {
+  if (!iso) return "never";
+  try {
+    return new Date(iso).toLocaleString("en-GB", {
+      timeZone: "Europe/Zurich",
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return fmtTime(iso);
+  }
+}
+
 interface Status {
   lastMarketUpdate: string | null;
   lastEventUpdate: string | null;
@@ -76,33 +91,42 @@ export function StatusBar() {
   }
 
   return (
-    <header className="h-11 shrink-0 border-b border-terminal-border bg-terminal-panel/90 backdrop-blur flex items-center px-3 gap-4 text-2xs">
-      <div className="flex items-center gap-2 shrink-0">
+    <header className="min-h-12 shrink-0 border-b border-terminal-border bg-terminal-panel/90 backdrop-blur flex items-center px-3 sm:px-4 gap-3 py-2 text-xs">
+      <div className="flex items-center gap-2 shrink-0 md:hidden">
         <BrandMark size={20} />
-        <span className="font-display text-xs font-semibold tracking-wide text-terminal-text hidden sm:inline">
+        <span className="font-display text-sm font-semibold text-terminal-text">
           {brand.shortName}
         </span>
       </div>
-      <div className="h-4 w-px bg-terminal-border shrink-0" />
-      <div className="flex items-center gap-2">
-        <span className="text-terminal-muted uppercase tracking-wider">Quality</span>
+      <div className="hidden sm:flex items-center gap-2 shrink-0">
+        <span className="text-terminal-muted">Quality</span>
         <QualityBadge quality={status?.dataQuality || "insufficient"} />
       </div>
-      <div className="text-terminal-dim truncate min-w-0">
-        Markets: <span className="num text-terminal-text">{fmtTime(status?.lastMarketUpdate)}</span>
-        <span className="mx-2 text-terminal-border">|</span>
-        Events: <span className="num text-terminal-text">{fmtTime(status?.lastEventUpdate)}</span>
-        <span className="mx-2 text-terminal-border">|</span>
-        Derive:{" "}
-        <span className="num text-terminal-text">{fmtTime(sched?.lastRuns?.derive)}</span>
-        <span className="mx-2 text-terminal-border">|</span>
-        <span className="num">{status?.marketCount ?? 0}</span> snaps /{" "}
-        <span className="num">{status?.eventCount ?? 0}</span> events
+      <div className="text-terminal-dim min-w-0 hidden md:flex items-center gap-x-3 flex-wrap leading-5">
+        <span className="whitespace-nowrap">
+          <span className="text-terminal-muted">Markets</span>{" "}
+          <span className="num text-terminal-text">{shortStamp(status?.lastMarketUpdate)}</span>
+        </span>
+        <span className="whitespace-nowrap">
+          <span className="text-terminal-muted">Events</span>{" "}
+          <span className="num text-terminal-text">{shortStamp(status?.lastEventUpdate)}</span>
+        </span>
+        <span className="whitespace-nowrap">
+          <span className="text-terminal-muted">Derive</span>{" "}
+          <span className="num text-terminal-text">{shortStamp(sched?.lastRuns?.derive)}</span>
+        </span>
+        <span className="whitespace-nowrap num text-terminal-text">
+          {status?.marketCount ?? 0}
+          <span className="text-terminal-muted font-sans"> snaps</span>
+          <span className="mx-1.5 text-terminal-border">·</span>
+          {status?.eventCount ?? 0}
+          <span className="text-terminal-muted font-sans"> events</span>
+        </span>
       </div>
       <div className="ml-auto flex items-center gap-2 shrink-0">
         <Link
           href="/settings/scheduler"
-          className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 border border-terminal-border rounded hover:border-terminal-teal/50 text-terminal-dim hover:text-terminal-text"
+          className="hidden xl:inline-flex items-center gap-1.5 px-2 py-1 border border-terminal-border rounded-md hover:border-terminal-teal/40 text-terminal-dim hover:text-terminal-text"
           title="Scheduler settings"
         >
           <span
@@ -115,12 +139,13 @@ export function StatusBar() {
           Sched {sched?.inFastSession ? "session" : "off-hrs"}
         </Link>
         <AccountMenu variant="status" />
-        <div className="h-4 w-px bg-terminal-border hidden sm:block" />
-        {msg && <span className="text-terminal-muted max-w-md truncate hidden md:inline">{msg}</span>}
+        {msg && (
+          <span className="text-terminal-muted max-w-[16rem] truncate hidden xl:inline">{msg}</span>
+        )}
         <button
           onClick={refresh}
           disabled={busy}
-          className="px-2.5 py-1 border border-terminal-border rounded-md bg-terminal-surface hover:border-terminal-teal/60 hover:shadow-glow text-terminal-text disabled:opacity-50 transition-all"
+          className="px-3 py-1.5 rounded-md border border-terminal-teal/35 bg-terminal-teal/10 text-terminal-text hover:bg-terminal-teal/15 disabled:opacity-50 transition-colors text-xs font-medium"
         >
           {busy ? "Refreshing…" : "Refresh data"}
         </button>
