@@ -7,6 +7,8 @@ import { ensureSeedData } from "@/lib/bootstrap/refresh";
 import { getForecasts, ensureForecasts } from "@/lib/forecast/distributions";
 import { computeCalibration } from "@/lib/forecast/calibration";
 import { DisclaimerStrip } from "@/components/billing/UpgradeBanner";
+import { CONFIDENCE_FORMULA_TEXT, RELIABILITY_WEIGHTS } from "@/lib/sources/weights";
+import { RISK_BAND_TEXT } from "@/lib/crypto/risk";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +90,23 @@ export default function MethodologyPage() {
             <div key={x.t} className="border border-terminal-border rounded p-2 bg-terminal-surface">
               <Badge tone="blue">{x.t}</Badge>
               <div className="mt-1 text-terminal-dim">{x.d}</div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Crypto source weights">
+        <p className="text-2xs text-terminal-dim mb-2">
+          Crypto intelligence reads stored observations. These weights are constants, not fitted scores.{" "}
+          <Link href="/crypto/coverage" className="text-terminal-teal">Coverage and formula</Link>.
+        </p>
+        <p className="text-2xs text-terminal-dim mb-2">{CONFIDENCE_FORMULA_TEXT}</p>
+        <p className="text-2xs text-terminal-dim mb-2">{RISK_BAND_TEXT}</p>
+        <div className="grid grid-cols-2 gap-2 text-2xs">
+          {Object.entries(RELIABILITY_WEIGHTS).map(([name, weight]) => (
+            <div key={name} className="border border-terminal-border rounded p-2">
+              <div className="text-terminal-text">{name}</div>
+              <div className="text-terminal-muted">{weight.toFixed(2)}</div>
             </div>
           ))}
         </div>

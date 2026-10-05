@@ -16,12 +16,23 @@ const GROUPS = [
     ],
   },
   {
+    label: "Crypto intelligence",
+    items: [
+      { href: "/crypto", label: "Overview", exact: true },
+      { href: "/crypto/assets", label: "Assets" },
+      { href: "/crypto/categories", label: "Categories" },
+      { href: "/crypto/risk", label: "High-risk research" },
+      { href: "/crypto/coverage", label: "Coverage" },
+    ],
+  },
+  {
     label: "Research",
     items: [
       { href: "/events", label: "Events" },
       { href: "/scenarios", label: "Scenarios" },
       { href: "/map", label: "Causal Map" },
       { href: "/countries", label: "Countries" },
+      { href: "/explorer", label: "Market explorer" },
       { href: "/assets", label: "Assets" },
       { href: "/warnings", label: "Warnings" },
       { href: "/forecasts", label: "Forecasts" },
@@ -61,7 +72,7 @@ export function Sidebar() {
               {group.label}
             </div>
             {group.items.map((item) => {
-              const active = item.href === "/" ? path === "/" : path.startsWith(item.href);
+              const active = ("exact" in item && item.exact) || item.href === "/" ? path === item.href : path.startsWith(item.href);
               return (
                 <Link
                   key={item.href}

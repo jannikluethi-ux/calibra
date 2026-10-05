@@ -17,7 +17,7 @@ export default function AssetsPage() {
     <div className="space-y-3">
       <div>
         <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">Asset Intelligence</h1>
-        <p className="text-2xs text-terminal-muted mt-0.5">Major instruments with live Yahoo snapshots where available. Proxies labeled.</p>
+        <p className="text-2xs text-terminal-muted mt-0.5">Tracked scenario set (about 21 symbols) with live Yahoo snapshots where available. Proxies labeled. The full universe is the <Link href="/explorer" className="text-terminal-accent">Market explorer</Link>.</p>
       </div>
       <Panel title="Universe">
         <div className="overflow-x-auto">

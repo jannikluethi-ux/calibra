@@ -420,6 +420,8 @@ export interface PortfolioHolding {
   weight?: number;
   quantity?: number;
   assetClass?: string;
+  /** Canonical instrument id when a single venue resolved. Omitted when ambiguous. */
+  instrumentId?: string;
 }
 
 export interface MetaState {

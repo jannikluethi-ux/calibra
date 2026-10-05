@@ -14,11 +14,15 @@ interface Holding {
 
 export default function PortfolioPage() {
   const [text, setText] = useState("SPX,40\nBTC,10\nGOLD,15\nUS10Y,20\nEURUSD,15");
+  const [resolutions, setResolutions] = useState<
+    { input: string; status: string; instrumentId?: string; candidates: { id: string; symbol: string; name: string; data_source: string; exchange: string | null }[] }[]
+  >([]);
   const [impact, setImpact] = useState<{
     rows: {
-      holding: Holding;
+      holding: Holding & { instrumentId?: string };
       matchedScenarios: { title: string; branchFocus: string; sensitivity: string; evidence: string[] }[];
       marketSnapshot?: { price: number | null; change1d: number | null; quality: string };
+      instrument?: { id: string; name: string; price: number | null; quote_status: string };
     }[];
     disclaimer: string;
   } | null>(null);
@@ -47,6 +51,7 @@ export default function PortfolioPage() {
       });
       const j = await r.json();
       setImpact(j.impact);
+      setResolutions(j.resolutions || []);
     } finally {
       setBusy(false);
     }
@@ -70,7 +75,7 @@ export default function PortfolioPage() {
       <div>
         <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">Portfolio Impact</h1>
         <p className="text-2xs text-terminal-muted mt-0.5">
-          Enter holdings (symbol, weight%). Maps active scenarios → exposure → sensitivity → evidence. <strong>NO buy/sell advice.</strong>
+          Enter holdings (symbol, weight%). Symbols resolve through the instrument universe. If two venues share a symbol, candidates are listed and none is chosen. <strong>NO buy/sell advice.</strong>
         </p>
       </div>
       <Panel title="Holdings">
@@ -89,6 +94,24 @@ export default function PortfolioPage() {
           {busy ? "Analyzing…" : "Save & analyze"}
         </button>
       </Panel>
+      {resolutions.some((r) => r.status === "ambiguous") && (
+        <Panel title="Ambiguous symbols">
+          <div className="text-2xs text-terminal-muted mb-2">More than one instrument shares this symbol. Nothing was selected automatically.</div>
+          {resolutions.filter((r) => r.status === "ambiguous").map((r) => (
+            <div key={r.input} className="mb-2 text-xs">
+              <div className="text-terminal-text">{r.input}</div>
+              <ul className="mt-1 space-y-0.5 text-2xs text-terminal-dim">
+                {r.candidates.map((c) => (
+                  <li key={c.id}>
+                    <a className="text-terminal-accent" href={`/instruments/${encodeURIComponent(c.id)}`}>{c.name}</a>
+                    {" "}· {c.symbol} · {c.data_source}{c.exchange ? ` · ${c.exchange}` : ""} · <span className="num">{c.id}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </Panel>
+      )}
       {impact && (
         <Panel title="Scenario exposure map">
           <div className="text-2xs text-terminal-amber mb-2">{impact.disclaimer}</div>
@@ -97,6 +120,7 @@ export default function PortfolioPage() {
               <div key={row.holding.symbol} className="border border-terminal-border rounded p-2 bg-terminal-surface">
                 <div className="flex items-center gap-2 text-xs">
                   <span className="font-semibold">{row.holding.symbol}</span>
+                  {row.instrument && <span className="text-2xs text-terminal-muted num">{row.instrument.id}</span>}
                   {row.holding.weight != null && <Badge>w {row.holding.weight}%</Badge>}
                   {row.marketSnapshot && (
                     <>

@@ -279,7 +279,7 @@ export function MoversBoard({
               Scored {data.scoredCount}/{data.universeSize} · showing {data.rows.length}
               {loading ? " · refreshing…" : ""}
             </span>
-            <span className="text-terminal-dim italic">Not buy/sell advice · scenario estimates only</span>
+            <span className="text-terminal-dim italic">Not buy/sell advice · scenario estimates only. This top 10 is a scenario board, not the instrument library. The full universe is the <Link href="/explorer" className="text-terminal-accent hover:underline">Market explorer</Link>.</span>
           </div>
         )}
       </div>

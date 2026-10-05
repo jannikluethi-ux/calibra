@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import { ensureInstrumentTables } from "../instruments/schema";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "gfi.db");
@@ -13,6 +14,7 @@ export function getDb(): Database.Database {
   dbInstance = new Database(DB_PATH);
   dbInstance.pragma("journal_mode = WAL");
   dbInstance.pragma("foreign_keys = ON");
+  dbInstance.pragma("busy_timeout = 10000");
   migrate(dbInstance);
   return dbInstance;
 }
@@ -142,6 +144,7 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_forecasts_horizon_end ON forecasts(horizon_end);
   `);
 
+  ensureInstrumentTables(db);
 }
 
 export function getMeta(key: string): string | null {
