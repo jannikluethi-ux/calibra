@@ -28,7 +28,19 @@ export function getOvernightDigest(hours = 12) {
     .map((a) => ({ ruleName: a.ruleName, message: a.message, firedAt: a.firedAt }));
   const gauges = getRiskGauges().map((g) => ({ id: g.id, name: g.name, score: g.score, direction: g.direction }));
   const s = getSchedulerStatus();
+  // Materiality heuristic (thresholds are editorial, not signals): surface only when something notable changed.
+  const reasons: string[] = [];
+  if (alerts.length > 0) reasons.push(`${alerts.length} alert(s) fired`);
+  const hiEvents = topEvents.filter((e) => e.composite >= 65);
+  if (hiEvents.length > 0) reasons.push(`${hiEvents.length} event(s) with impact >= 65`);
+  const bigMoves = markets.filter((m) => Math.abs(m.change1d as number) >= 5);
+  if (bigMoves.length > 0) reasons.push(`stored 1d move >= 5%: ${bigMoves.map((m) => m.symbol).join(", ")}`);
+  const hotGauges = gauges.filter((g) => g.score >= 70);
+  if (hotGauges.length > 0) reasons.push(`risk gauge >= 70: ${hotGauges.map((g) => g.name).join(", ")}`);
+  if (s.dataQuality && s.dataQuality !== "live") reasons.push(`data quality: ${s.dataQuality}`);
   return {
+    material: reasons.length > 0,
+    materialReasons: reasons,
     windowHours: hours,
     generatedAt: new Date().toISOString(),
     lastTick: s.lastTick,
