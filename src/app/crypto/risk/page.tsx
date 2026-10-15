@@ -58,7 +58,7 @@ export default function CryptoRiskPage({ searchParams }: { searchParams: { page?
           Scored coins: {total}. High or extreme under the stated bands: {highCount}.
         </CryptoHeader>
       <Panel title="How the score is built">
-        <div className="text-2xs text-terminal-dim space-y-2">
+        <div className="text-caption text-ink-2 space-y-2">
           <p>{LIQUIDITY_RULE_TEXT}</p>
           <p>{MOVE_RULE_TEXT}</p>
           <p>{INFO_RULE_TEXT}</p>
@@ -76,9 +76,9 @@ export default function CryptoRiskPage({ searchParams }: { searchParams: { page?
           )}
         </div>
       </Panel>
-      <div className="overflow-x-auto border border-terminal-border rounded">
-        <table className="w-full text-xs">
-          <thead className="text-2xs uppercase text-terminal-muted bg-terminal-surface">
+      <div className="card overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-caption uppercase tracking-wider text-ink-3 bg-surface-1">
             <tr>
               <th className="text-left p-2">Asset</th>
               <th className="text-right p-2">Score</th>
@@ -94,12 +94,12 @@ export default function CryptoRiskPage({ searchParams }: { searchParams: { page?
               const components = JSON.parse(row.components_json) as Record<string, { score: number } | null>;
               const cell = (key: string) => (components[key] ? components[key]!.score : "Not scored");
               return (
-                <tr key={row.instrument_id} className="border-t border-terminal-border">
+                <tr key={row.instrument_id} className="border-t border-line">
                   <td className="p-2">
-                    <Link className="text-terminal-teal" href={`/crypto/${encodeURIComponent(row.instrument_id)}`}>
+                    <Link className="text-accent" href={`/crypto/${encodeURIComponent(row.instrument_id)}`}>
                       {row.name}
                     </Link>
-                    <div className="text-2xs text-terminal-muted">
+                    <div className="text-caption text-ink-3">
                       {row.symbol} · rank {row.rank ?? "Unknown"}
                       {row.band_capped ? ` · capped: ${row.cap_reason || "thin inputs"}` : ""}
                     </div>
@@ -116,17 +116,17 @@ export default function CryptoRiskPage({ searchParams }: { searchParams: { page?
           </tbody>
         </table>
       </div>
-      <div className="flex gap-3 text-xs">
+      <div className="flex gap-3 text-sm">
         {page > 1 ? (
-          <Link className="text-terminal-teal" href={`/crypto/risk?page=${page - 1}`}>Previous</Link>
+          <Link className="text-accent" href={`/crypto/risk?page=${page - 1}`}>Previous</Link>
         ) : (
-          <span className="text-terminal-muted">Previous</span>
+          <span className="text-ink-3">Previous</span>
         )}
-        <span className="text-terminal-muted">Page {page}</span>
+        <span className="text-ink-3">Page {page}</span>
         {offset + rows.length < total ? (
-          <Link className="text-terminal-teal" href={`/crypto/risk?page=${page + 1}`}>Next</Link>
+          <Link className="text-accent" href={`/crypto/risk?page=${page + 1}`}>Next</Link>
         ) : (
-          <span className="text-terminal-muted">Next</span>
+          <span className="text-ink-3">Next</span>
         )}
       </div>
     </div>

@@ -36,63 +36,63 @@ export default function CryptoAssetsPage({
       <CryptoHeader title="Crypto assets">
           Server-paged instruments with asset_type crypto. {result.total.toLocaleString("en-US")} rows. Missing numbers stay Not available.
         </CryptoHeader>
-      <form className="flex flex-wrap gap-2 text-xs" action="/crypto/assets">
+      <form className="flex flex-wrap gap-2 text-sm" action="/crypto/assets">
         <input
           name="q"
           defaultValue={q}
           placeholder="Search symbol or name"
-          className="bg-terminal-surface border border-terminal-border rounded px-2 py-1"
+          className="form-control max-w-xs"
         />
-        <select name="sort" defaultValue={sort} className="bg-terminal-surface border border-terminal-border rounded px-2 py-1">
+        <select name="sort" defaultValue={sort} className="form-control w-auto">
           <option value="rank">Rank</option>
           <option value="market_cap">Market cap</option>
           <option value="volume">Volume</option>
           <option value="change_24h">24h change</option>
           <option value="name">Name</option>
         </select>
-        <select name="dir" defaultValue={dir} className="bg-terminal-surface border border-terminal-border rounded px-2 py-1">
+        <select name="dir" defaultValue={dir} className="form-control w-auto">
           <option value="asc">Ascending</option>
           <option value="desc">Descending</option>
         </select>
-        <button className="px-2 py-1 border border-terminal-border rounded" type="submit">Apply</button>
+        <button className="btn-secondary" type="submit">Apply</button>
       </form>
-      <div className="overflow-x-auto border border-terminal-border rounded">
-        <table className="w-full text-xs">
-          <thead className="text-2xs uppercase text-terminal-muted bg-terminal-surface">
+      <div className="card overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-caption uppercase tracking-wider text-ink-3 bg-surface-1">
             <tr>
-              <th className="text-left p-2">Name</th>
-              <th className="text-left p-2">Tier</th>
-              <th className="text-right p-2">Rank</th>
-              <th className="text-right p-2">Price</th>
-              <th className="text-right p-2">Market cap</th>
-              <th className="text-right p-2">24h</th>
-              <th className="text-left p-2">Quote</th>
+              <th className="text-left py-2.5 px-3">Name</th>
+              <th className="text-left py-2.5 px-3">Tier</th>
+              <th className="text-right py-2.5 px-3">Rank</th>
+              <th className="text-right py-2.5 px-3">Price</th>
+              <th className="text-right py-2.5 px-3">Market cap</th>
+              <th className="text-right py-2.5 px-3">24h</th>
+              <th className="text-left py-2.5 px-3">Quote</th>
             </tr>
           </thead>
           <tbody>
             {result.items.map((row) => (
-              <tr key={row.id} className="border-t border-terminal-border">
-                <td className="p-2">
-                  <Link className="text-terminal-teal" href={`/crypto/${encodeURIComponent(row.id)}`}>
+              <tr key={row.id} className="border-t border-line/50">
+                <td className="p-2.5">
+                  <Link className="text-accent" href={`/crypto/${encodeURIComponent(row.id)}`}>
                     {row.name}
                   </Link>
-                  <div className="text-2xs text-terminal-muted">{row.symbol} · {row.data_source}</div>
+                  <div className="text-caption text-ink-3">{row.symbol} · {row.data_source}</div>
                 </td>
-                <td className="p-2">{cryptoTier(row)}</td>
-                <td className="p-2 text-right">{row.rank ?? "Unknown"}</td>
-                <td className="p-2 text-right">{fmtPrice(row.price)}</td>
-                <td className="p-2 text-right">{fmtCompact(row.market_cap)}</td>
-                <td className="p-2 text-right">{fmtPct(row.change_24h_pct)}</td>
-                <td className="p-2">{row.quote_status}</td>
+                <td className="p-2.5">{cryptoTier(row)}</td>
+                <td className="p-2.5 text-right num">{row.rank ?? "Unknown"}</td>
+                <td className="p-2.5 text-right num">{fmtPrice(row.price)}</td>
+                <td className="p-2.5 text-right num">{fmtCompact(row.market_cap)}</td>
+                <td className="p-2.5 text-right num">{fmtPct(row.change_24h_pct)}</td>
+                <td className="p-2.5">{row.quote_status}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="flex gap-3 text-xs">
-        {page > 1 ? <Link className="text-terminal-teal" href={qs(page - 1)}>Previous</Link> : <span className="text-terminal-muted">Previous</span>}
-        <span className="text-terminal-muted">Page {result.page}</span>
-        {result.nextCursor ? <Link className="text-terminal-teal" href={qs(page + 1)}>Next</Link> : <span className="text-terminal-muted">Next</span>}
+      <div className="flex gap-3 text-sm">
+        {page > 1 ? <Link className="text-accent" href={qs(page - 1)}>Previous</Link> : <span className="text-ink-3">Previous</span>}
+        <span className="text-ink-3">Page {result.page}</span>
+        {result.nextCursor ? <Link className="text-accent" href={qs(page + 1)}>Next</Link> : <span className="text-ink-3">Next</span>}
       </div>
     </div>
   );

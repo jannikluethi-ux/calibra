@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-t border-terminal-border py-1.5 flex justify-between gap-4 text-xs">
-      <span className="text-terminal-muted">{label}</span>
-      <span className="text-right text-terminal-text">{value}</span>
+    <div className="border-t border-line py-1.5 flex justify-between gap-4 text-sm">
+      <span className="text-ink-3">{label}</span>
+      <span className="text-right text-ink">{value}</span>
     </div>
   );
 }
@@ -40,35 +40,35 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
   return (
     <div className="space-y-3 max-w-4xl">
       <div>
-        <h1 className="text-sm font-semibold text-terminal-text">
-          {inst.name} <span className="text-terminal-muted">{inst.symbol}</span>
+        <h1 className="text-sm font-semibold text-ink">
+          {inst.name} <span className="text-ink-3">{inst.symbol}</span>
         </h1>
-        <p className="text-2xs text-terminal-muted mt-1">
+        <p className="text-caption text-ink-3 mt-1">
           {data.tier_text}. Rank {inst.rank ?? "Unknown"}. Quote {inst.quote_status}. Source row {inst.data_source}. Research only, not a buy or sell signal.
         </p>
-        <p className="text-2xs text-terminal-muted break-all">Instrument id {inst.id}</p>
+        <p className="text-caption text-ink-3 break-all">Instrument id {inst.id}</p>
       </div>
 
       <Panel title="Price">
         {price && typeof price.value === "number" ? (
-          <div className="text-xs space-y-1 text-terminal-dim">
-            <p className="text-lg text-terminal-text">{fmtPrice(price.value)} USD</p>
+          <div className="text-sm space-y-1 text-ink-2">
+            <p className="text-lg text-ink">{fmtPrice(price.value)} USD</p>
             <p>Method {price.method}. Sources {price.n_sources}. Confidence {price.confidence == null ? "Unknown" : price.confidence.toFixed(4)}.</p>
             <p>Freshness {price.freshness}. Newest retrieved {fmtTime(price.newest_retrieved_at)}. As of {fmtTime(price.as_of)}. Stale {price.stale ? "yes" : "no"}.</p>
             <p>Disagreement {price.disagreement === 1 ? "yes" : "no"}. Spread {price.spread == null ? "Not available" : price.spread.toFixed(6)}.</p>
             <p>{data.disagreement_note}</p>
-            <p className="text-2xs text-terminal-muted">{data.confidence_formula}</p>
+            <p className="text-caption text-ink-3">{data.confidence_formula}</p>
           </div>
         ) : (
-          <p className="text-xs text-terminal-dim">
+          <p className="text-sm text-ink-2">
             Canonical price: Not available.
             {data.price_observations.length === 0 ? " No price observations are stored." : " Observations exist but no enabled consensus was produced."}
             {data.price_observations.length === 1 ? " Only one price source is stored." : ""}
           </p>
         )}
         <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-2xs">
-            <thead className="uppercase text-terminal-muted">
+          <table className="w-full text-caption">
+            <thead className="uppercase text-ink-3">
               <tr>
                 <th className="text-left p-1">Source</th>
                 <th className="text-right p-1">Price</th>
@@ -79,13 +79,13 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
             </thead>
             <tbody>
               {data.price_observations.length === 0 ? (
-                <tr><td className="p-1 text-terminal-muted" colSpan={5}>Not available</td></tr>
+                <tr><td className="p-1 text-ink-3" colSpan={5}>Not available</td></tr>
               ) : (
                 data.price_observations.map((row) => (
-                  <tr key={`${row.source_id}-${row.retrieved_at}`} className="border-t border-terminal-border">
+                  <tr key={`${row.source_id}-${row.retrieved_at}`} className="border-t border-line">
                     <td className="p-1">
                       {row.source_name}
-                      <div className="text-terminal-muted">{row.source_class}</div>
+                      <div className="text-ink-3">{row.source_class}</div>
                       {row.source_url ? <div className="break-all">{row.source_url}</div> : null}
                     </td>
                     <td className="p-1 text-right">{fmtPrice(row.value)}</td>
@@ -112,25 +112,25 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
 
       <Panel title="About">
         {data.description ? (
-          <div className="text-xs text-terminal-dim space-y-2">
-            <p className="text-terminal-text">{data.description.label}. Claim type {data.description.claim_type}. Not a verified fact.</p>
+          <div className="text-sm text-ink-2 space-y-2">
+            <p className="text-ink">{data.description.label}. Claim type {data.description.claim_type}. Not a verified fact.</p>
             <p>{data.description.text}</p>
             <p>Retrieved {fmtTime(data.description.retrieved_at)}</p>
             <p className="break-all">Source URL: {data.description.source_url || "Unknown"}</p>
           </div>
         ) : data.about_status === "fetched_no_description" ? (
-          <p className="text-xs text-terminal-dim">
+          <p className="text-sm text-ink-2">
             A CoinGecko coin payload was retrieved, but it did not include a description. No backstory is written from that gap. Other returned fields, if any, are listed under data sources as reported claims. {data.tier_text}.
           </p>
         ) : (
-          <p className="text-xs text-terminal-dim">
+          <p className="text-sm text-ink-2">
             A research profile has not been fetched for this coin. {data.tier_text}.
           </p>
         )}
       </Panel>
 
       <Panel title="Not sourced">
-        <ul className="text-xs text-terminal-dim space-y-1">
+        <ul className="text-sm text-ink-2 space-y-1">
           {data.unsourced_sections.map((name) => (
             <li key={name}>{name.replace(/_/g, " ")}: Insufficient data</li>
           ))}
@@ -144,7 +144,7 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
 
       <Panel title="Research score">
         {data.risk ? (
-          <div className="text-xs text-terminal-dim space-y-2">
+          <div className="text-sm text-ink-2 space-y-2">
             <p>
               Total {Number(data.risk.total).toFixed(2)}. Band {String(data.risk.band)}. Scored on {String(data.risk.factors_scored)} of {String(data.risk.factors_possible)} factors.
               {data.risk.band_capped ? ` Band capped. ${data.risk.cap_reason || ""}` : ""}
@@ -153,15 +153,15 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
             <p>{LIQUIDITY_RULE_TEXT}</p>
             <p>{MOVE_RULE_TEXT}</p>
             <p>{INFO_RULE_TEXT}</p>
-            <table className="w-full text-2xs">
+            <table className="w-full text-caption">
               <tbody>
                 {RISK_FACTORS.map((key) => {
                   const comp = components?.[key];
                   return (
-                    <tr key={key} className="border-t border-terminal-border">
+                    <tr key={key} className="border-t border-line">
                       <td className="py-1 pr-2">{key.replace(/_/g, " ")}</td>
                       <td className="py-1">{comp ? comp.score : "Not scored (insufficient data)"}</td>
-                      <td className="py-1 text-terminal-muted">{comp ? comp.detail : "No observation or stored input for this factor."}</td>
+                      <td className="py-1 text-ink-3">{comp ? comp.detail : "No observation or stored input for this factor."}</td>
                     </tr>
                   );
                 })}
@@ -169,7 +169,7 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
             </table>
           </div>
         ) : (
-          <p className="text-xs text-terminal-dim">
+          <p className="text-sm text-ink-2">
             Not scored. The scorer runs on live-quoted crypto only. This row has quote status {inst.quote_status}.
           </p>
         )}
@@ -177,10 +177,10 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
 
       <Panel title="Data sources used for this coin">
         {data.observations.length === 0 ? (
-          <p className="text-xs text-terminal-dim">No source observations are stored for this instrument.</p>
+          <p className="text-sm text-ink-2">No source observations are stored for this instrument.</p>
         ) : (
-          <table className="w-full text-2xs">
-            <thead className="uppercase text-terminal-muted">
+          <table className="w-full text-caption">
+            <thead className="uppercase text-ink-3">
               <tr>
                 <th className="text-left p-1">Source</th>
                 <th className="text-left p-1">Field</th>
@@ -190,10 +190,10 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
             </thead>
             <tbody>
               {data.observations.slice(0, 40).map((row, i) => (
-                <tr key={`${row.source_id}-${row.field}-${i}`} className="border-t border-terminal-border align-top">
+                <tr key={`${row.source_id}-${row.field}-${i}`} className="border-t border-line align-top">
                   <td className="p-1">
                     {row.source_name}
-                    <div className="text-terminal-muted">{row.source_class} · {row.enabled ? "enabled" : "disabled"}</div>
+                    <div className="text-ink-3">{row.source_class} · {row.enabled ? "enabled" : "disabled"}</div>
                     {row.source_url ? <div className="break-all">{row.source_url}</div> : null}
                   </td>
                   <td className="p-1">{row.field}</td>
@@ -207,17 +207,17 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
       </Panel>
 
       <Panel title="Related instruments">
-        <p className="text-2xs text-terminal-muted mb-2">
+        <p className="text-caption text-ink-3 mb-2">
           Other crypto rows with the same symbol or the same name. {data.related.total} found. Showing {data.related.items.length}. They are not merged into this record, and Yahoo is not chosen over CoinGecko.
         </p>
         {data.related.items.length === 0 ? (
-          <p className="text-xs text-terminal-dim">None stored.</p>
+          <p className="text-sm text-ink-2">None stored.</p>
         ) : (
-          <ul className="text-xs space-y-1">
+          <ul className="text-sm space-y-1">
             {data.related.items.map((row) => (
               <li key={row.id}>
-                <Link className="text-terminal-teal" href={`/instruments/${encodeURIComponent(row.id)}`}>{row.name}</Link>
-                <span className="text-terminal-muted"> {row.symbol} · {row.data_source} · {row.quote_status} · {fmtPrice(row.price)}</span>
+                <Link className="text-accent" href={`/instruments/${encodeURIComponent(row.id)}`}>{row.name}</Link>
+                <span className="text-ink-3"> {row.symbol} · {row.data_source} · {row.quote_status} · {fmtPrice(row.price)}</span>
               </li>
             ))}
           </ul>
@@ -225,19 +225,19 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
       </Panel>
 
       <Panel title="Linked news">
-        <p className="text-2xs text-terminal-muted mb-2">
+        <p className="text-caption text-ink-3 mb-2">
           {data.news_count} stored live events matched this instrument by a whole-token name or a unique live symbol. Demo events are not linked.
         </p>
         {data.news.length === 0 ? (
-          <p className="text-xs text-terminal-dim">None.</p>
+          <p className="text-sm text-ink-2">None.</p>
         ) : (
-          <ul className="text-xs space-y-2">
+          <ul className="text-sm space-y-2">
             {data.news.map((item) => (
               <li key={item.event_id}>
                 <div>{item.title}</div>
-                <div className="text-2xs text-terminal-muted">
+                <div className="text-caption text-ink-3">
                   {item.source_name || "Unknown"} · {item.match_kind} · {fmtTime(item.published_at)}
-                  {item.citation_url ? <> · <a className="text-terminal-teal" href={item.citation_url}>{item.citation_url}</a></> : null}
+                  {item.citation_url ? <> · <a className="text-accent" href={item.citation_url}>{item.citation_url}</a></> : null}
                 </div>
               </li>
             ))}

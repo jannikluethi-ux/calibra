@@ -154,13 +154,13 @@ export default function AlertsPage() {
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="bg-terminal-bg border border-terminal-border rounded px-2 py-1.5"
+            className="form-control"
             placeholder="Name"
           />
           <select
             value={metric}
             onChange={(e) => setMetric(e.target.value)}
-            className="bg-terminal-bg border border-terminal-border rounded px-2 py-1.5"
+            className="form-control"
           >
             <option value="severe_down_prob">Severe-down outcome weight % (forecast)</option>
             <option value="price_change_1d">Observed 1-day move ± %</option>
@@ -174,18 +174,18 @@ export default function AlertsPage() {
           <input
             value={assetSymbol}
             onChange={(e) => setAssetSymbol(e.target.value.toUpperCase())}
-            className="bg-terminal-bg border border-terminal-border rounded px-2 py-1.5"
+            className="form-control"
             placeholder="Symbol / gauge id"
           />
           <input
             type="number"
             value={threshold}
             onChange={(e) => setThreshold(Number(e.target.value))}
-            className="bg-terminal-bg border border-terminal-border rounded px-2 py-1.5"
+            className="form-control"
           />
         </div>
-        <div className="mt-2 flex flex-wrap gap-4 text-2xs">
-          <label className="flex items-center gap-1.5 text-terminal-dim">
+        <div className="mt-2 flex flex-wrap gap-4 text-caption">
+          <label className="flex items-center gap-1.5 text-ink-2">
             <input type="checkbox" checked disabled /> in-app (required)
           </label>
           <label className="flex items-center gap-1.5">
@@ -211,7 +211,7 @@ export default function AlertsPage() {
           <input
             value={emailAddress}
             onChange={(e) => setEmailAddress(e.target.value)}
-            className="mt-2 w-full bg-terminal-bg border border-terminal-border rounded px-2 py-1.5 text-xs"
+            className="form-control mt-2 text-xs"
             placeholder="alert recipient email"
           />
         )}
@@ -219,21 +219,21 @@ export default function AlertsPage() {
           <input
             value={webhookUrl}
             onChange={(e) => setWebhookUrl(e.target.value)}
-            className="mt-2 w-full bg-terminal-bg border border-terminal-border rounded px-2 py-1.5 text-xs"
+            className="form-control mt-2 text-xs"
             placeholder="https://hooks.example/…"
           />
         )}
-        {error && <p className="text-2xs text-terminal-red mt-2">{error}</p>}
+        {error && <p className="text-caption text-scenario-downside mt-2">{error}</p>}
         <div className="flex gap-2 mt-2">
           <button
             onClick={create}
-            className="px-3 py-1.5 border border-terminal-border rounded text-xs hover:border-terminal-accent"
+            className="btn-secondary text-xs"
           >
             Save threshold
           </button>
           <button
             onClick={evaluate}
-            className="px-3 py-1.5 border border-terminal-accent text-terminal-accent rounded text-xs"
+            className="btn-accent text-xs"
           >
             Check thresholds now
           </button>
@@ -247,12 +247,12 @@ export default function AlertsPage() {
           {alerts.map((a) => (
             <div
               key={a.id}
-              className="flex flex-wrap items-center gap-2 text-xs border border-terminal-border rounded p-2 bg-terminal-surface"
+              className="flex flex-wrap items-center gap-2 text-sm border border-line rounded-card p-3 bg-surface-2"
             >
               <span className="font-medium">{a.name}</span>
               <Badge>{a.metric}</Badge>
               {a.assetSymbol && <Badge tone="blue">{a.assetSymbol}</Badge>}
-              <span className="num text-terminal-dim">≥ {a.threshold}</span>
+              <span className="num text-ink-2">≥ {a.threshold}</span>
               <Badge tone={a.enabled ? "green" : "neutral"}>{a.enabled ? "on" : "off"}</Badge>
               {(a.channels || ["in_app"]).map((c) => (
                 <Badge key={c} tone="purple">
@@ -260,18 +260,18 @@ export default function AlertsPage() {
                 </Badge>
               ))}
               {a.lastFiredAt && (
-                <span className="text-2xs text-terminal-muted">last {fmtTime(a.lastFiredAt)}</span>
+                <span className="text-caption text-ink-3">last {fmtTime(a.lastFiredAt)}</span>
               )}
               <div className="ml-auto flex gap-1">
                 <button
                   onClick={() => toggle(a.id, !a.enabled)}
-                  className="text-2xs px-2 py-0.5 border border-terminal-border rounded"
+                  className="text-caption px-2 py-0.5 border border-line rounded"
                 >
                   Toggle
                 </button>
                 <button
                   onClick={() => remove(a.id)}
-                  className="text-2xs px-2 py-0.5 border border-terminal-red/40 text-terminal-red rounded"
+                  className="text-caption px-2 py-0.5 border border-scenario-downside/40 text-scenario-downside rounded"
                 >
                   Delete
                 </button>
@@ -285,11 +285,11 @@ export default function AlertsPage() {
         {fired.length ? (
           <ul className="space-y-1 text-xs">
             {fired.map((f) => (
-              <li key={f.id} className="border-b border-terminal-border/50 py-1">
+              <li key={f.id} className="border-b border-line/50 py-1">
                 <span className="text-ink font-medium">{f.ruleName}</span> — {publicMessage(f.message)}
-                <span className="text-2xs text-terminal-muted num ml-2">{fmtTime(f.firedAt)}</span>
+                <span className="text-caption text-ink-3 num ml-2">{fmtTime(f.firedAt)}</span>
                 {f.deliveryNotes?.length ? (
-                  <div className="text-2xs text-terminal-muted mt-0.5">
+                  <div className="text-caption text-ink-3 mt-0.5">
                     {f.deliveryNotes.join(" · ")}
                   </div>
                 ) : null}
@@ -302,7 +302,7 @@ export default function AlertsPage() {
       </Panel>
 
       <details className="group">
-        <summary className="cursor-pointer text-2xs text-terminal-muted hover:text-terminal-text">Delivery log</summary>
+        <summary className="cursor-pointer text-caption text-ink-3 hover:text-ink">Delivery log</summary>
         <div className="mt-2">
       <Panel
         title="Delivery log"
@@ -312,19 +312,19 @@ export default function AlertsPage() {
           </Badge>
         }
       >
-        <p className="text-2xs text-terminal-muted mb-2">
+        <p className="text-caption text-ink-3 mb-2">
           Recent email / webhook delivery attempts. Entries marked queued have not been sent.
         </p>
         {outbox.length ? (
-          <ul className="space-y-2 text-2xs max-h-64 overflow-y-auto">
+          <ul className="space-y-2 text-caption max-h-64 overflow-y-auto">
             {outbox.map((o) => (
-              <li key={o.id} className="border border-terminal-border/50 rounded p-2 bg-terminal-surface">
+              <li key={o.id} className="border border-line/50 rounded p-2 bg-surface-2">
                 <div className="flex flex-wrap gap-2 items-center">
                   <Badge tone="blue">{o.kind}</Badge>
                   <Badge>{o.status}</Badge>
-                  <span className="num text-terminal-muted">{fmtTime(o.createdAt)}</span>
+                  <span className="num text-ink-3">{fmtTime(o.createdAt)}</span>
                 </div>
-                <div className="text-terminal-dim mt-1">
+                <div className="text-ink-2 mt-1">
                   {o.to && <span>to {o.to} · </span>}
                   {o.url && <span className="break-all">url {o.url} · </span>}
                   {o.subject}
@@ -334,12 +334,12 @@ export default function AlertsPage() {
             ))}
           </ul>
         ) : (
-          <div className="text-terminal-muted text-xs">
+          <div className="text-ink-3 text-xs">
             Outbox empty. Create a Pro email/webhook alert and evaluate to queue entries.
           </div>
         )}
-        <p className="text-2xs mt-2">
-          <Link href="/pricing" className="text-terminal-accent">
+        <p className="text-caption mt-2">
+          <Link href="/pricing" className="text-accent">
             Upgrade for email channel
           </Link>
         </p>

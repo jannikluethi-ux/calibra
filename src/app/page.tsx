@@ -17,6 +17,8 @@ import { ScenarioWeightBar, scenarioWeights } from "@/components/uncertainty/Sce
 import { ProvenanceChip } from "@/components/uncertainty/ProvenanceChip";
 import { MetricDelta } from "@/components/uncertainty/MetricDelta";
 import { brand } from "@/lib/brand";
+import { normalizeEventTitle } from "@/lib/ingestion/dedupe";
+import { universeSymbolMatchesScenarioAsset } from "@/lib/market/scenarioSymbols";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -52,8 +54,17 @@ export default function TodayPage() {
   const markets = getMarketSnapshots();
   const events = getEvents(6);
   const warnings = getWarnings().slice(0, 4);
-  const seenTitles = new Set<string>();
-  const scenarios = getScenarios(12).filter((s) => (seenTitles.has(s.title) ? false : (seenTitles.add(s.title), true)));
+  // Dedupe scenario cards: same eventId or normalized headline (strip "Scenario set:") → one card.
+  const seenKeys = new Set<string>();
+  const scenarios = getScenarios(24).filter((s) => {
+    const headline = s.title.replace(/^Scenario set:\s*/i, "");
+    const key = s.eventId
+      ? `event:${s.eventId}`
+      : `title:${normalizeEventTitle(headline)}`;
+    if (seenKeys.has(key)) return false;
+    seenKeys.add(key);
+    return true;
+  }).slice(0, 12);
   const dataQuality = getMeta("dataQuality") || "insufficient";
   const lastRisk = getMeta("lastRiskUpdate");
   const initialMovers = rankMovers("1-4w", "up", 10);
@@ -71,7 +82,9 @@ export default function TodayPage() {
   const moves = (digest?.largestStoredMoves ?? []).slice(0, 3);
 
   const enriched = markets.map((m) => {
-    const s = scenarios.find((sc) => sc.affectedAssets.includes(m.symbol));
+    const s = scenarios.find((sc) =>
+      (sc.affectedAssets || []).some((a) => universeSymbolMatchesScenarioAsset(m.symbol, a))
+    );
     return { ...m, scenarioWeights: s ? scenarioWeights(s) : undefined };
   });
 

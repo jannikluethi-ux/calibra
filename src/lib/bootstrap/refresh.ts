@@ -17,6 +17,10 @@ import { persistWarnings } from "../warnings/detect";
 import { ensureDefaultAlerts, evaluateAlerts } from "../alerts/store";
 import type { FiredAlert } from "../types";
 import { getMeta, setMeta, getDb } from "../db";
+import {
+  cleanupExactTitleDuplicateEvents,
+  cleanupDuplicateScenariosByEventId,
+} from "../ingestion/dedupe";
 
 export interface RefreshResult {
   ok: boolean;
@@ -362,6 +366,20 @@ export async function fullRefresh(): Promise<RefreshResult> {
 export function ensureSeedData() {
   getDb();
   ensureDemoEventsIfEmpty();
+  // One-shot light cleanup of exact title-duplicate events (re-ingest noise). Meta gate.
+  if (getMeta("eventDedupeCleanupV1") !== "done") {
+    try {
+      const ev = cleanupExactTitleDuplicateEvents();
+      const sc = cleanupDuplicateScenariosByEventId();
+      setMeta("eventDedupeCleanupV1", "done");
+      setMeta(
+        "eventDedupeCleanupV1Detail",
+        JSON.stringify({ at: new Date().toISOString(), ...ev, scenariosCollapsed: sc.deleted })
+      );
+    } catch {
+      /* non-fatal: ingestion dedupe still prevents new dupes */
+    }
+  }
   ensureScenarios();
   ensureForecasts();
   seedCountries();

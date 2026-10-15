@@ -42,14 +42,14 @@ export default function CryptoCategoriesPage() {
         </CryptoHeader>
       {list.length === 0 ? (
         <Panel title="Empty">
-          <p className="text-xs text-terminal-dim">
+          <p className="text-sm text-ink-2">
             No category observations are stored. Count: 0. This page does not invent a layer list.
           </p>
         </Panel>
       ) : (
         <Panel title="Stored categories">
-          <table className="w-full text-xs">
-            <thead className="text-2xs uppercase text-terminal-muted">
+          <table className="w-full text-sm">
+            <thead className="text-caption uppercase text-ink-3">
               <tr>
                 <th className="text-left py-1">Category</th>
                 <th className="text-right py-1">Coins</th>
@@ -57,19 +57,19 @@ export default function CryptoCategoriesPage() {
             </thead>
             <tbody>
               {list.map(([name, count]) => (
-                <tr key={name} className="border-t border-terminal-border">
+                <tr key={name} className="border-t border-line">
                   <td className="py-1">{name}</td>
                   <td className="py-1 text-right">{count}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="text-2xs text-terminal-muted mt-2">
+          <p className="text-caption text-ink-3 mt-2">
             These strings are whatever the provider returned for the coins that were fetched. They are reported claims.
           </p>
         </Panel>
       )}
-      <Link className="text-2xs text-terminal-teal" href="/crypto/coverage">Coverage</Link>
+      <Link className="text-caption text-accent" href="/crypto/coverage">Coverage</Link>
     </div>
   );
 }

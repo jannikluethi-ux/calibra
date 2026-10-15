@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { ScenarioWeightBar, type ScenarioWeights } from "@/components/uncertainty/ScenarioWeightBar";
 import { ProvenanceChip } from "@/components/uncertainty/ProvenanceChip";
+import { lookupExpandedWeights } from "@/lib/market/scenarioSymbols";
 import { changeColor } from "@/lib/format";
 
 interface InstrumentItem {
@@ -113,7 +114,14 @@ function pushRecent(q: string) {
   localStorage.setItem(RECENT_KEY, JSON.stringify(next));
 }
 
-export function MarketExplorer({ scenarioBySymbol = {} }: { scenarioBySymbol?: Record<string, ScenarioWeights> }) {
+export function MarketExplorer({
+  scenarioBySymbol = {},
+  scenarioWeightMaps,
+}: {
+  /** @deprecated Prefer scenarioWeightMaps (id + symbol|type). Kept for simple symbol lookups. */
+  scenarioBySymbol?: Record<string, ScenarioWeights>;
+  scenarioWeightMaps?: { byId: Record<string, ScenarioWeights>; bySymbolType: Record<string, ScenarioWeights> };
+}) {
   const router = useRouter();
   const [draft, setDraft] = useState("");
   const [q, setQ] = useState("");
@@ -447,7 +455,9 @@ export function MarketExplorer({ scenarioBySymbol = {} }: { scenarioBySymbol?: R
             </thead>
             <tbody>
               {items.map((row) => {
-                const w = scenarioBySymbol[row.symbol.toUpperCase()];
+                const w = scenarioWeightMaps
+                  ? lookupExpandedWeights(row, scenarioWeightMaps)
+                  : scenarioBySymbol[row.symbol.toUpperCase()];
                 return (
                 <tr
                   key={row.id}

@@ -48,7 +48,7 @@ const num = (x: unknown, d: number) => (typeof x === "number" && Number.isFinite
 
 /** Higher-convexity assets widen the tail branch (MODEL ASSUMPTION, not measured). */
 const ASSET_TAIL_BETA: Record<string, number> = {
-  VIX: 1.0, BTC: 1.0, OIL: 0.7, USDJPY: 0.5, NKY: 0.4, IXIC: 0.4,
+  VIX: 1.0, BTC: 1.0, OIL: 0.7, USDJPY: 0.5, NKY: 0.4, IXIC: 0.4, NDX: 0.4,
   GOLD: 0.2, SPX: 0.2, SX5E: 0.25, DAX: 0.25, DXY: 0.1, EURUSD: 0.1, US10Y: 0.15,
 };
 
@@ -225,7 +225,7 @@ function inferAssets(event: FinancialEvent): string[] {
   for (const inst of instruments) {
     const m: Record<string, string> = {
       "S&P 500": "SPX",
-      Nasdaq: "IXIC",
+      Nasdaq: "NDX",
       Nikkei: "NKY",
       "US 10Y": "US10Y",
       "USD/JPY": "USDJPY",

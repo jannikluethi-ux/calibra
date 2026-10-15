@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import type { FinancialEvent, DataQuality, SourceTier } from "../types";
 import { classifyEventV2, reclassifyEventV2 } from "../classification/classify_v2";
 import { getDb, upsertJson, setMeta } from "../db";
+import { upsertEventDeduped } from "./dedupe";
 
 const parser = new Parser({
   timeout: 12000,
@@ -296,7 +297,7 @@ export async function ingestRssFeeds(): Promise<{ live: number; demo: number; ev
     }
   }
 
-  // Dedupe by title similarity (exact title)
+  // Batch-local exact-title dedupe, then DB near-dupe upsert (normalize + 72h window).
   const seen = new Set<string>();
   const unique: FinancialEvent[] = [];
   for (const ev of collected) {
@@ -306,15 +307,15 @@ export async function ingestRssFeeds(): Promise<{ live: number; demo: number; ev
     unique.push(ev);
   }
 
+  const stored: FinancialEvent[] = [];
   for (const ev of unique) {
-    upsertJson("events", "id", ev.id, ev, {
-      published_at: ev.publishedAt,
-      quality: ev.quality,
-    });
+    const { event } = upsertEventDeduped(ev);
+    // Avoid returning the same existing row twice in one ingest pass
+    if (!stored.some((s) => s.id === event.id)) stored.push(event);
   }
 
   setMeta("lastEventUpdate", new Date().toISOString());
-  return { live, demo, events: unique };
+  return { live, demo, events: stored };
 }
 
 export function getEvents(limit = 100): FinancialEvent[] {
