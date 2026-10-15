@@ -140,8 +140,8 @@ export default function AlertsPage() {
           Alert Configuration
         </h1>
         <p className="text-2xs text-terminal-muted mt-0.5">
-          In-app required. Email / webhook are Pro. Without SMTP, emails queue to{" "}
-          <code className="text-terminal-teal">data/alert_outbox.json</code> — never pretend sent.
+          Get notified when a scenario weight, risk gauge or market move crosses your threshold. In-app alerts
+          are included; email and webhook delivery are Pro.
         </p>
       </div>
 
@@ -285,7 +285,7 @@ export default function AlertsPage() {
           <ul className="space-y-1 text-xs">
             {fired.map((f) => (
               <li key={f.id} className="border-b border-terminal-border/50 py-1">
-                <span className="text-terminal-amber">{f.ruleName}</span> — {f.message}
+                <span className="text-terminal-amber">{f.ruleName}</span> — {publicMessage(f.message)}
                 <span className="text-2xs text-terminal-muted num ml-2">{fmtTime(f.firedAt)}</span>
                 {f.deliveryNotes?.length ? (
                   <div className="text-2xs text-terminal-muted mt-0.5">
@@ -300,17 +300,19 @@ export default function AlertsPage() {
         )}
       </Panel>
 
+      <details className="group">
+        <summary className="cursor-pointer text-2xs text-terminal-muted hover:text-terminal-text">Delivery log</summary>
+        <div className="mt-2">
       <Panel
-        title="Outbox"
+        title="Delivery log"
         right={
           <Badge tone={smtpConfigured ? "green" : "amber"}>
-            {smtpConfigured ? "SMTP env set" : "no SMTP — file queue"}
+            {smtpConfigured ? "SMTP env set" : "email delivery not configured"}
           </Badge>
         }
       >
         <p className="text-2xs text-terminal-muted mb-2">
-          Email / webhook delivery attempts. Path:{" "}
-          <code className="text-terminal-teal">data/alert_outbox.json</code>
+          Recent email / webhook delivery attempts. Entries marked queued have not been sent.
         </p>
         {outbox.length ? (
           <ul className="space-y-2 text-2xs max-h-64 overflow-y-auto">
@@ -326,7 +328,7 @@ export default function AlertsPage() {
                   {o.url && <span className="break-all">url {o.url} · </span>}
                   {o.subject}
                 </div>
-                <div className="text-terminal-amber mt-0.5">{o.note}</div>
+                
               </li>
             ))}
           </ul>
@@ -341,6 +343,16 @@ export default function AlertsPage() {
           </Link>
         </p>
       </Panel>
+        </div>
+      </details>
     </div>
   );
+}
+
+/** Strip internal delivery-pipeline notes (outbox/SMTP) from user-facing alert text. */
+function publicMessage(m: string): string {
+  return m
+    .replace(/\s*[;,|·—-]?\s*email queued to outbox[^;|]*?\(no SMTP[^)]*\)/gi, "")
+    .replace(/\s*\(no SMTP[^)]*\)/gi, "")
+    .trim();
 }

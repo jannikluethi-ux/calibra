@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { QualityBadge } from "../ui/Badge";
+import { ageLabel } from "@/components/uncertainty/ProvenanceChip";
 import { fmtTime } from "@/lib/format";
 import { brand } from "@/lib/brand";
 import { BrandMark } from "@/components/brand/BrandMark";
@@ -90,65 +90,48 @@ export function StatusBar() {
     }
   }
 
+  const latest = [status?.lastMarketUpdate, status?.lastEventUpdate]
+    .filter(Boolean)
+    .sort()
+    .pop() as string | undefined;
+  const q = status?.dataQuality;
+  const dot =
+    q === "live" ? "bg-dq-fresh" : q === "cached" || q === "demo" || q === "proxy" ? "bg-dq-stale" : "bg-dq-insufficient";
+  const qLabel = !status ? "Checking data…" : q === "live" ? "Live data" : q ? `${q[0].toUpperCase()}${q.slice(1)} data` : "Data status unknown";
+
   return (
-    <header className="min-h-12 shrink-0 border-b border-terminal-border bg-terminal-panel/90 backdrop-blur flex items-center px-3 sm:px-4 gap-3 py-2 text-xs">
-      <div className="flex items-center gap-2 shrink-0 md:hidden">
-        <BrandMark size={20} />
-        <span className="font-display text-sm font-semibold text-terminal-text">
-          {brand.shortName}
-        </span>
-      </div>
-      <div className="hidden sm:flex items-center gap-2 shrink-0">
-        <span className="text-terminal-muted">Quality</span>
-        <QualityBadge quality={status?.dataQuality || "insufficient"} />
-      </div>
-      <div className="text-terminal-dim min-w-0 hidden md:flex items-center gap-x-3 flex-wrap leading-5">
-        <span className="whitespace-nowrap">
-          <span className="text-terminal-muted">Markets</span>{" "}
-          <span className="num text-terminal-text">{shortStamp(status?.lastMarketUpdate)}</span>
-        </span>
-        <span className="whitespace-nowrap">
-          <span className="text-terminal-muted">Events</span>{" "}
-          <span className="num text-terminal-text">{shortStamp(status?.lastEventUpdate)}</span>
-        </span>
-        <span className="whitespace-nowrap">
-          <span className="text-terminal-muted">Derive</span>{" "}
-          <span className="num text-terminal-text">{shortStamp(sched?.lastRuns?.derive)}</span>
-        </span>
-        <span className="whitespace-nowrap num text-terminal-text">
-          {status?.marketCount ?? 0}
-          <span className="text-terminal-muted font-sans"> snaps</span>
-          <span className="mx-1.5 text-terminal-border">·</span>
-          {status?.eventCount ?? 0}
-          <span className="text-terminal-muted font-sans"> events</span>
-        </span>
+    <header className="h-14 shrink-0 border-b border-line bg-surface-0/85 backdrop-blur flex items-center px-4 sm:px-6 gap-3 text-caption">
+      <Link href="/" className="flex items-center gap-2 shrink-0 md:hidden">
+        <BrandMark size={22} />
+        <span className="font-display text-sm font-semibold text-ink">{brand.shortName}</span>
+      </Link>
+      <div
+        className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-1 px-3 py-1 text-ink-2"
+        title={
+          status
+            ? `Markets updated ${shortStamp(status.lastMarketUpdate)} · Events updated ${shortStamp(status.lastEventUpdate)} · ${status.marketCount} market snapshots · ${status.eventCount} events stored${sched?.lastRuns?.derive ? ` · derive ${shortStamp(sched.lastRuns.derive)}` : ""}`
+            : undefined
+        }
+      >
+        <span className={`inline-block h-1.5 w-1.5 rounded-full ${dot}`} />
+        <span className="text-ink">{qLabel}</span>
+        {latest && (
+          <span className="hidden sm:inline text-ink-3">
+            · updated <span className="num">{ageLabel(latest) ?? shortStamp(latest)}</span>
+          </span>
+        )}
       </div>
       <div className="ml-auto flex items-center gap-2 shrink-0">
-        <Link
-          href="/settings/scheduler"
-          className="hidden xl:inline-flex items-center gap-1.5 px-2 py-1 border border-terminal-border rounded-md hover:border-terminal-teal/40 text-terminal-dim hover:text-terminal-text"
-          title="Scheduler settings"
-        >
-          <span
-            className={
-              sched?.enabled
-                ? "inline-block w-1.5 h-1.5 rounded-full bg-terminal-green"
-                : "inline-block w-1.5 h-1.5 rounded-full bg-terminal-amber"
-            }
-          />
-          Sched {sched?.inFastSession ? "session" : "off-hrs"}
-        </Link>
-        <AccountMenu variant="status" />
-        {msg && (
-          <span className="text-terminal-muted max-w-[16rem] truncate hidden xl:inline">{msg}</span>
-        )}
+        {msg && <span className="text-ink-3 max-w-[16rem] truncate hidden xl:inline">{msg}</span>}
         <button
           onClick={refresh}
           disabled={busy}
-          className="px-3 py-1.5 rounded-md border border-terminal-teal/35 bg-terminal-teal/10 text-terminal-text hover:bg-terminal-teal/15 disabled:opacity-50 transition-colors text-xs font-medium"
+          title="Fetch latest markets and events"
+          className="hidden sm:inline-flex px-3 py-1.5 rounded-md border border-line text-ink-2 hover:text-ink hover:border-line-strong disabled:opacity-50 transition-colors duration-[120ms]"
         >
-          {busy ? "Refreshing…" : "Refresh data"}
+          {busy ? "Refreshing…" : "Refresh"}
         </button>
+        <AccountMenu variant="status" />
       </div>
     </header>
   );

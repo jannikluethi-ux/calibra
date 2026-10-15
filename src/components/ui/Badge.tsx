@@ -34,6 +34,6 @@ export function QualityBadge({ quality }: { quality: string }) {
           ? "amber"
           : quality === "proxy"
             ? "purple"
-            : "red";
+            : "neutral";
   return <Badge tone={tone as "green"}>{quality.toUpperCase()}</Badge>;
 }

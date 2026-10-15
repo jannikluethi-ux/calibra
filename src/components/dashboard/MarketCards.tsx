@@ -4,8 +4,9 @@ import { Panel } from "../ui/Panel";
 import { QualityBadge } from "../ui/Badge";
 import { changeColor, fmtNum, fmtPct } from "@/lib/format";
 import clsx from "clsx";
+import { ScenarioWeightBar, type ScenarioWeights } from "../uncertainty/ScenarioWeightBar";
 
-export function MarketCards({ markets }: { markets: MarketSnapshot[] }) {
+export function MarketCards({ markets }: { markets: (MarketSnapshot & { scenarioWeights?: ScenarioWeights })[] }) {
   if (!markets.length) {
     return (
       <Panel title="Market Overview">
@@ -59,8 +60,12 @@ export function MarketCards({ markets }: { markets: MarketSnapshot[] }) {
             </div>
             <div className="text-2xs text-terminal-muted mt-2.5 leading-relaxed">
               vol≈{fmtNum(m.volatilityEst, 0)}%
-              {m.scenarioSnippet ? ` · ${m.scenarioSnippet}` : ""}
             </div>
+            {m.scenarioWeights && (
+              <div className="mt-2" title="Linked scenario weights (estimate)">
+                <ScenarioWeightBar weights={m.scenarioWeights} size="sm" showLegend={false} />
+              </div>
+            )}
             {m.isProxy && m.proxyNote && (
               <div className="text-2xs text-terminal-dim mt-1.5 line-clamp-2 leading-relaxed">{m.proxyNote}</div>
             )}

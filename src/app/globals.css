@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --background: #101614;
-  --foreground: #e7eee9;
-  --panel: #161e1b;
-  --border: #2e3c36;
+  --background: #0e1412;
+  --foreground: #e9f0eb;
+  --panel: #141c19;
+  --border: #26332e;
   --teal: #3dbeab;
   --amber: #e4b15c;
   --accent: #8fd0c4;
@@ -15,8 +15,8 @@
 html,
 body {
   height: 100%;
-  background: #101614;
-  color: #e7eee9;
+  background: #0e1412;
+  color: #e9f0eb;
 }
 
 body {
@@ -32,7 +32,7 @@ body {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2e3c36 #101614;
+  scrollbar-color: #26332e #0e1412;
 }
 
 :focus-visible {
@@ -42,7 +42,6 @@ body {
 
 .num {
   font-variant-numeric: tabular-nums;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-feature-settings: "tnum" 1;
   letter-spacing: -0.01em;
 }
@@ -59,7 +58,7 @@ body {
 
 .panel-header {
   @apply px-4 py-2.5 border-b border-terminal-border text-xs font-medium uppercase tracking-wide text-terminal-dim flex items-center justify-between gap-3;
-  background: linear-gradient(90deg, rgba(61, 190, 171, 0.06), transparent 46%);
+  
 }
 
 .badge {
@@ -90,4 +89,23 @@ a {
 
 input, textarea, select, button {
   font: inherit;
+}
+
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+.card {
+  @apply bg-surface-1 border border-line rounded-card;
+}
+.card-hero {
+  @apply bg-surface-2 border border-line-strong rounded-hero shadow-e2;
+}
+.micro-label {
+  @apply text-micro uppercase text-ink-3 font-medium;
+}
+
+@keyframes rise-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.rise-in { animation: rise-in 320ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .rise-in { animation: none; }
+  * { transition-duration: 0ms !important; }
 }
