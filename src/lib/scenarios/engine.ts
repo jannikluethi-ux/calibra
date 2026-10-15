@@ -206,12 +206,34 @@ function inferAssets(event: FinancialEvent): string[] {
   return Array.from(assets);
 }
 
+function findScenarioByEventId(eventId: string): Scenario | null {
+  const row = getDb()
+    .prepare(
+      `SELECT data FROM scenarios WHERE json_extract(data, '$.eventId') = ? ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(eventId) as { data: string } | undefined;
+  return row ? (JSON.parse(row.data) as Scenario) : null;
+}
+
+/** Rebuild/refresh scenarios for recent events.
+ *  Upserts by eventId: reuses the existing scenario row (stable id) when one
+ *  already exists for that event, so repeated derive/refresh ticks do not
+ *  append unbounded duplicate rows. */
 export function rebuildScenariosFromEvents(limit = 12): Scenario[] {
   const events = getEvents(limit);
-  const scenarios = events.map(generateScenarioFromEvent);
   getDb();
-  for (const s of scenarios) {
-    upsertJson("scenarios", "id", s.id, s, { created_at: s.createdAt });
+  const scenarios: Scenario[] = [];
+  const now = new Date().toISOString();
+  for (const event of events) {
+    const fresh = generateScenarioFromEvent(event);
+    const existing = findScenarioByEventId(event.id);
+    if (existing) {
+      fresh.id = existing.id;
+      fresh.createdAt = existing.createdAt;
+      fresh.updatedAt = now;
+    }
+    upsertJson("scenarios", "id", fresh.id, fresh, { created_at: fresh.createdAt });
+    scenarios.push(fresh);
   }
   return scenarios;
 }

@@ -387,6 +387,14 @@ export interface AlertRule {
   emailAddress?: string;
   webhookUrl?: string;
   userId?: string;
+  /** Minimum minutes between firings (default 15). */
+  cooldownMinutes?: number;
+  /** risk_gauge only: fire on upward cross of threshold, or a rise of reFireOnRise points since last fire. */
+  riseOnly?: boolean;
+  reFireOnRise?: number;
+  /** Last observed metric value (used for cross detection). */
+  lastValue?: number;
+  lastFiredValue?: number;
 }
 
 export interface FiredAlert {

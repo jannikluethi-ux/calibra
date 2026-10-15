@@ -12,6 +12,7 @@ const GROUPS = [
     label: "Desk",
     items: [
       { href: "/", label: "Dashboard" },
+      { href: "/digest", label: "Overnight digest" },
       { href: "/movers", label: "Elevated Prob." },
     ],
   },

@@ -180,7 +180,7 @@ export function evaluateAlerts(): FiredAlert[] {
   const fired: FiredAlert[] = [];
 
   for (const rule of rules) {
-    if (recentlyFired(rule.id)) continue;
+    if (recentlyFired(rule.id, (rule.cooldownMinutes ?? 15) * 60 * 1000)) continue;
 
     let hit = false;
     let message = "";
@@ -206,9 +206,23 @@ export function evaluateAlerts(): FiredAlert[] {
       }
     } else if (rule.metric === "risk_gauge") {
       const g = gauges.find((x) => x.id === (rule.assetSymbol || "global_risk"));
-      if (g && g.score >= rule.threshold) {
-        hit = true;
-        message = `Risk gauge ${g.name} score ${g.score} ≥ ${rule.threshold}`;
+      if (g) {
+        const prev = rule.lastValue;
+        const above = g.score >= rule.threshold;
+        if (rule.riseOnly) {
+          const crossed = above && (prev == null || prev < rule.threshold);
+          const jump = rule.reFireOnRise ?? 10;
+          const rose = above && rule.lastFiredValue != null && g.score - rule.lastFiredValue >= jump;
+          hit = crossed || rose;
+          message = crossed
+            ? `Risk gauge ${g.name} crossed ${rule.threshold} (now ${g.score})`
+            : `Risk gauge ${g.name} rose to ${g.score} (+${jump} since last alert)`;
+        } else if (above) {
+          hit = true;
+          message = `Risk gauge ${g.name} score ${g.score} ≥ ${rule.threshold}`;
+        }
+        updateAlert(rule.id, { lastValue: g.score });
+        if (hit) rule.lastFiredValue = g.score;
       }
     } else if (rule.metric === "vix_level") {
       const vix = markets.find((x) => x.symbol === "VIX");
@@ -258,7 +272,10 @@ export function evaluateAlerts(): FiredAlert[] {
       fa = deliverChannels(rule, fa);
       fired.push(fa);
       upsertJson("fired_alerts", "id", fa.id, fa, { fired_at: fa.firedAt });
-      updateAlert(rule.id, { lastFiredAt: fa.firedAt });
+      updateAlert(rule.id, {
+        lastFiredAt: fa.firedAt,
+        ...(rule.lastFiredValue != null ? { lastFiredValue: rule.lastFiredValue } : {}),
+      });
     }
   }
   return fired;
@@ -290,6 +307,9 @@ export function ensureDefaultAlerts() {
     threshold: 70,
     metric: "risk_gauge",
     enabled: true,
+    riseOnly: true,
+    reFireOnRise: 10,
+    cooldownMinutes: 360,
     channels: ["in_app"],
   });
   createAlert({

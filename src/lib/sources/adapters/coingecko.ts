@@ -6,6 +6,18 @@ import { PROJECT_COINS } from "./coingecko-project";
 
 const GAP_MS = 8000;
 
+/**
+ * Extra large-cap ids quoted in the same single simple/price request (no extra HTTP calls).
+ * Each id exists in the stored CoinGecko instrument list. Only values CoinGecko returns are stored.
+ * Coverage gap: the other ~21.8k stored instruments are NOT quoted; the free tier's ~10-30 req/min
+ * and 429 guard (cg-guard) cap expansion. Adding ids here keeps it to one request.
+ */
+export const EXTRA_QUOTE_IDS = [
+  "tether", "binancecoin", "usd-coin", "tron", "bitcoin-cash", "stellar", "hedera-hashgraph",
+  "the-open-network", "shiba-inu", "monero", "cosmos", "internet-computer", "filecoin",
+  "ethereum-classic", "hyperliquid",
+];
+
 function idsForSimplePrice(): string[] {
   const ids = new Set<string>();
   for (const row of COINBASE_PRODUCT_MAP) {
@@ -13,6 +25,7 @@ function idsForSimplePrice(): string[] {
     if (row.instrumentId.startsWith(prefix)) ids.add(row.instrumentId.slice(prefix.length));
   }
   for (const coin of PROJECT_COINS) ids.add(coin.id);
+  for (const id of EXTRA_QUOTE_IDS) ids.add(id);
   return Array.from(ids);
 }
 
