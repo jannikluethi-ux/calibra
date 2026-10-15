@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { queryInstruments } from "@/lib/instruments/store";
 import { cryptoTier, fmtCompact, fmtPrice, fmtPct } from "@/lib/crypto/format";
+import { CryptoHeader } from "@/components/crypto/CryptoHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +33,9 @@ export default function CryptoAssetsPage({
 
   return (
     <div className="space-y-3">
-      <div>
-        <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">Crypto assets</h1>
-        <p className="text-2xs text-terminal-muted mt-1">
+      <CryptoHeader title="Crypto assets">
           Server-paged instruments with asset_type crypto. {result.total.toLocaleString("en-US")} rows. Missing numbers stay Not available.
-        </p>
-      </div>
+        </CryptoHeader>
       <form className="flex flex-wrap gap-2 text-xs" action="/crypto/assets">
         <input
           name="q"

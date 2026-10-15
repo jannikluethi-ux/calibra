@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { prepareCryptoStore } from "@/lib/sources/prepare";
 import { Panel } from "@/components/ui/Panel";
 import { INFO_RULE_TEXT, LIQUIDITY_RULE_TEXT, MOVE_RULE_TEXT, RISK_BAND_TEXT } from "@/lib/crypto/risk";
+import { CryptoHeader } from "@/components/crypto/CryptoHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -52,13 +53,10 @@ export default function CryptoRiskPage({ searchParams }: { searchParams: { page?
 
   return (
     <div className="space-y-3">
-      <div>
-        <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">High-risk research</h1>
-        <p className="text-2xs text-terminal-muted mt-1 max-w-3xl">
+      <CryptoHeader title="Higher-uncertainty assets">
           Sorted by research score among coins that have a score. The score is not a buy or sell signal and not a warning to exit a position.
           Scored coins: {total}. High or extreme under the stated bands: {highCount}.
-        </p>
-      </div>
+        </CryptoHeader>
       <Panel title="How the score is built">
         <div className="text-2xs text-terminal-dim space-y-2">
           <p>{LIQUIDITY_RULE_TEXT}</p>

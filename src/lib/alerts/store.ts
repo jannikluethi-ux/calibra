@@ -132,7 +132,7 @@ function deliverChannels(rule: AlertRule, fa: FiredAlert): FiredAlert {
     queueEmail({
       to: rule.emailAddress,
       subject: `[Calibra alert] ${rule.name}`,
-      body: `${fa.message}\n\nFired at ${fa.firedAt}\n\nCalibra — probabilistic market intelligence; not investment advice.`,
+      body: `${fa.message}\n\nFired at ${fa.firedAt}\n\nCalibra scenario and threshold notification. This is information, not investment advice or a trading signal.`,
       ruleId: rule.id,
       firedAlertId: fa.id,
     });
@@ -190,19 +190,19 @@ export function evaluateAlerts(): FiredAlert[] {
       const bucket = f?.distribution.find((b) => b.label === "severe_down");
       if (bucket && bucket.probability > rule.threshold) {
         hit = true;
-        message = `${rule.assetSymbol} severe_down prob ${bucket.probability}% > ${rule.threshold}%`;
+        message = `${rule.assetSymbol}: severe-down outcome weight in the forecast distribution is ${bucket.probability}%, above your ${rule.threshold}% threshold (model estimate)`;
       }
     } else if (rule.metric === "price_change_1d" && rule.assetSymbol) {
       const m = markets.find((x) => x.symbol === rule.assetSymbol);
       if (m?.change1d != null && Math.abs(m.change1d) >= rule.threshold) {
         hit = true;
-        message = `${rule.assetSymbol} |1d| change ${m.change1d.toFixed(2)}% ≥ ${rule.threshold}%`;
+        message = `${rule.assetSymbol}: observed 1-day move of ${m.change1d.toFixed(2)}% reached your ±${rule.threshold}% threshold`;
       }
     } else if (rule.metric === "large_move" && rule.assetSymbol) {
       const m = markets.find((x) => x.symbol === rule.assetSymbol);
       if (m?.change1d != null && Math.abs(m.change1d) >= rule.threshold) {
         hit = true;
-        message = `Large move: ${rule.assetSymbol} 1d ${m.change1d.toFixed(2)}% (threshold ${rule.threshold}%)`;
+        message = `${rule.assetSymbol}: observed 1-day move of ${m.change1d.toFixed(2)}% exceeded your ${rule.threshold}% threshold`;
       }
     } else if (rule.metric === "risk_gauge") {
       const g = gauges.find((x) => x.id === (rule.assetSymbol || "global_risk"));
@@ -215,11 +215,11 @@ export function evaluateAlerts(): FiredAlert[] {
           const rose = above && rule.lastFiredValue != null && g.score - rule.lastFiredValue >= jump;
           hit = crossed || rose;
           message = crossed
-            ? `Risk gauge ${g.name} crossed ${rule.threshold} (now ${g.score})`
+            ? `${g.name} gauge rose through your threshold of ${rule.threshold} (now ${g.score})`
             : `Risk gauge ${g.name} rose to ${g.score} (+${jump} since last alert)`;
         } else if (above) {
           hit = true;
-          message = `Risk gauge ${g.name} score ${g.score} ≥ ${rule.threshold}`;
+          message = `${g.name} gauge at ${g.score}, at or above your threshold of ${rule.threshold}`;
         }
         updateAlert(rule.id, { lastValue: g.score });
         if (hit) rule.lastFiredValue = g.score;
@@ -228,7 +228,7 @@ export function evaluateAlerts(): FiredAlert[] {
       const vix = markets.find((x) => x.symbol === "VIX");
       if (vix?.price != null && vix.price >= rule.threshold) {
         hit = true;
-        message = `VIX ${vix.price} ≥ ${rule.threshold}`;
+        message = `VIX observed at ${vix.price}, at or above your threshold of ${rule.threshold}`;
       }
     } else if (rule.metric === "scenario_prob") {
       const sc = rule.scenarioId
@@ -239,7 +239,7 @@ export function evaluateAlerts(): FiredAlert[] {
         const branch = sc[branchName];
         if (branch && branch.probability >= rule.threshold) {
           hit = true;
-          message = `Scenario "${sc.title}" ${branchName} prob ${branch.probability}% ≥ ${rule.threshold}%`;
+          message = `${({ base: "Base", bull: "Upside", bear: "Downside scenario", tail: "Tail" } as Record<string, string>)[branchName] ?? branchName} weight reached ${branch.probability}% (threshold ${rule.threshold}%) on "${sc.title.replace(/^Scenario set:\s*/, "")}" (model estimate)`;
         }
       }
     } else if (rule.metric === "forecast_invalidation" && rule.assetSymbol) {
@@ -249,14 +249,14 @@ export function evaluateAlerts(): FiredAlert[] {
         // Soft signal: open forecast with invalidators listed + large adverse move
         if (m?.change1d != null && Math.abs(m.change1d) >= (rule.threshold || 3)) {
           hit = true;
-          message = `Forecast invalidation watch: ${rule.assetSymbol} move ${m.change1d.toFixed(2)}% — review: ${f.invalidators[0]}`;
+          message = `${rule.assetSymbol}: observed move of ${m.change1d.toFixed(2)}% may test a forecast assumption: ${f.invalidators[0]}`;
         }
       }
     } else if (rule.metric === "high_impact_event") {
       const hi = events.find((e) => e.impactScore.composite >= rule.threshold);
       if (hi) {
         hit = true;
-        message = `High-impact event: "${hi.title}" composite ${hi.impactScore.composite} ≥ ${rule.threshold}`;
+        message = `New high-impact event (impact score ${hi.impactScore.composite}, threshold ${rule.threshold}): "${hi.title}"`;
       }
     }
 

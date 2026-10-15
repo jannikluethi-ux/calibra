@@ -83,7 +83,7 @@ export default function TodayPage() {
       value: String(resolved),
       note: resolved < 50 ? "small sample — too few to judge calibration" : undefined,
     },
-    { label: "Avg. Brier score", value: brier != null ? brier.toFixed(3) : "—", note: brier != null ? "lower is better · 0.25 = coin flip" : "needs resolved forecasts" },
+    { label: "Avg. Brier score", value: brier != null ? brier.toFixed(3) : "—", note: brier != null ? "lower is better · uniform guess = 0.160" : "needs resolved forecasts" },
     { label: "Open forecasts", value: String(calib?.openCount ?? 0) },
     { label: "Markets tracked", value: String(markets.length) },
     { label: "Events in last 12h", value: String(digest?.newEventCount ?? 0) },

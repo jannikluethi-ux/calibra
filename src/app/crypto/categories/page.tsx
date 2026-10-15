@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getDb } from "@/lib/db";
 import { prepareCryptoStore } from "@/lib/sources/prepare";
 import { Panel } from "@/components/ui/Panel";
+import { CryptoHeader } from "@/components/crypto/CryptoHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -36,12 +37,9 @@ export default function CryptoCategoriesPage() {
 
   return (
     <div className="space-y-3 max-w-3xl">
-      <div>
-        <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">Crypto categories</h1>
-        <p className="text-2xs text-terminal-muted mt-1">
+      <CryptoHeader title="Categories">
           Categories come only from stored observations. Coins with a sourced category list: {latest.size}.
-        </p>
-      </div>
+        </CryptoHeader>
       {list.length === 0 ? (
         <Panel title="Empty">
           <p className="text-xs text-terminal-dim">

@@ -134,14 +134,14 @@ export default function AlertsPage() {
   }
 
   return (
-    <div className="space-y-3 max-w-4xl">
+    <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">
-          Alert Configuration
-        </h1>
-        <p className="text-2xs text-terminal-muted mt-0.5">
-          Get notified when a scenario weight, risk gauge or market move crosses your threshold. In-app alerts
-          are included; email and webhook delivery are Pro.
+        <div className="micro-label text-accent">Notifications</div>
+        <h1 className="mt-2 font-display text-display-l text-ink">Threshold alerts</h1>
+        <p className="mt-2 text-sm text-ink-2 max-w-2xl">
+          Get a notification when a scenario weight, risk gauge or observed market move crosses a level you set.
+          Alerts describe what changed. They are not trading signals and don&apos;t recommend any action. In-app is
+          included; email and webhook delivery are Pro.
         </p>
       </div>
 
@@ -149,7 +149,7 @@ export default function AlertsPage() {
         <UpgradeBanner feature="Email & webhook alert channels" compact />
       )}
 
-      <Panel title="Create alert">
+      <Panel title="New threshold">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
           <input
             value={name}
@@ -162,14 +162,14 @@ export default function AlertsPage() {
             onChange={(e) => setMetric(e.target.value)}
             className="bg-terminal-bg border border-terminal-border rounded px-2 py-1.5"
           >
-            <option value="severe_down_prob">Severe down probability %</option>
-            <option value="price_change_1d">|1D price change| %</option>
-            <option value="large_move">Large move %</option>
-            <option value="vix_level">VIX level</option>
+            <option value="severe_down_prob">Severe-down outcome weight % (forecast)</option>
+            <option value="price_change_1d">Observed 1-day move ± %</option>
+            <option value="large_move">Observed large move %</option>
+            <option value="vix_level">VIX level (observed)</option>
             <option value="risk_gauge">Risk gauge score</option>
-            <option value="scenario_prob">Scenario branch prob %</option>
-            <option value="forecast_invalidation">Forecast invalidation watch</option>
-            <option value="high_impact_event">High-impact event score</option>
+            <option value="scenario_prob">Scenario weight % (Downside scenario by default)</option>
+            <option value="forecast_invalidation">Forecast assumption tested</option>
+            <option value="high_impact_event">High-impact event (impact score)</option>
           </select>
           <input
             value={assetSymbol}
@@ -229,20 +229,21 @@ export default function AlertsPage() {
             onClick={create}
             className="px-3 py-1.5 border border-terminal-border rounded text-xs hover:border-terminal-accent"
           >
-            Add
+            Save threshold
           </button>
           <button
             onClick={evaluate}
             className="px-3 py-1.5 border border-terminal-accent text-terminal-accent rounded text-xs"
           >
-            Evaluate now
+            Check thresholds now
           </button>
         </div>
         <DisclaimerStrip />
       </Panel>
 
-      <Panel title="Rules">
+      <Panel title="Your thresholds">
         <div className="space-y-2">
+          {alerts.length === 0 && <div className="text-ink-3 text-sm">No thresholds yet. Add one above.</div>}
           {alerts.map((a) => (
             <div
               key={a.id}
@@ -280,12 +281,12 @@ export default function AlertsPage() {
         </div>
       </Panel>
 
-      <Panel title="Fired alerts">
+      <Panel title="Recent notifications">
         {fired.length ? (
           <ul className="space-y-1 text-xs">
             {fired.map((f) => (
               <li key={f.id} className="border-b border-terminal-border/50 py-1">
-                <span className="text-terminal-amber">{f.ruleName}</span> — {publicMessage(f.message)}
+                <span className="text-ink font-medium">{f.ruleName}</span> — {publicMessage(f.message)}
                 <span className="text-2xs text-terminal-muted num ml-2">{fmtTime(f.firedAt)}</span>
                 {f.deliveryNotes?.length ? (
                   <div className="text-2xs text-terminal-muted mt-0.5">
@@ -296,7 +297,7 @@ export default function AlertsPage() {
             ))}
           </ul>
         ) : (
-          <div className="text-terminal-muted text-xs">No fired alerts yet.</div>
+          <div className="text-ink-3 text-sm">Nothing has crossed a threshold yet.</div>
         )}
       </Panel>
 
@@ -354,5 +355,11 @@ function publicMessage(m: string): string {
   return m
     .replace(/\s*[;,|·—-]?\s*email queued to outbox[^;|]*?\(no SMTP[^)]*\)/gi, "")
     .replace(/\s*\(no SMTP[^)]*\)/gi, "")
+    // Legacy stored messages: reframe as scenario-weight / threshold wording
+    .replace(/severe_down prob/gi, "severe-down outcome weight")
+    .replace(/\bbear prob\b/gi, "Downside scenario weight")
+    .replace(/\bbull prob\b/gi, "Upside weight")
+    .replace(/\b(base|tail) prob\b/gi, (_m, b: string) => `${b[0].toUpperCase()}${b.slice(1)} weight`)
+    .replace(/^Scenario "Scenario set:\s*/i, 'Scenario "')
     .trim();
 }

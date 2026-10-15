@@ -1,5 +1,6 @@
 import { Sidebar } from "./Sidebar";
 import { StatusBar } from "./StatusBar";
+import { CommandPalette } from "./CommandPalette";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -7,6 +8,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <StatusBar />
+        <CommandPalette />
         <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 pt-5 pb-24 sm:px-6 md:pb-6">
           <div className="mx-auto w-full max-w-[1280px]">
             {children}

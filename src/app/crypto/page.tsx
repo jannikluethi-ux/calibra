@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { Panel } from "@/components/ui/Panel";
 import { cryptoOverview } from "@/lib/crypto/overview";
 import { fmtCompact, fmtPct } from "@/lib/crypto/format";
 import { fmtTime } from "@/lib/format";
+import { CryptoHeader } from "@/components/crypto/CryptoHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -19,13 +19,10 @@ export default function CryptoOverviewPage() {
 
   return (
     <div className="space-y-3 max-w-5xl">
-      <div>
-        <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">Crypto intelligence</h1>
-        <p className="text-2xs text-terminal-muted mt-1 max-w-3xl">
+      <CryptoHeader title="Crypto overview">
           Research view of stored crypto instruments. Figures below are not advice and are not a buy or sell signal.
           {data.coverage_note}
-        </p>
-      </div>
+        </CryptoHeader>
 
       <div className="grid md:grid-cols-2 gap-3">
         <Panel title="Quoted-set market cap">
@@ -86,16 +83,6 @@ export default function CryptoOverviewPage() {
           <p className="text-xs text-terminal-dim">Insufficient data. The CoinGecko global endpoint was not stored.</p>
         )}
       </Panel>
-
-      <p className="text-2xs text-terminal-muted">
-        <Link className="text-terminal-teal" href="/crypto/assets">Assets</Link>
-        {" · "}
-        <Link className="text-terminal-teal" href="/crypto/risk">High-risk research</Link>
-        {" · "}
-        <Link className="text-terminal-teal" href="/crypto/coverage">Coverage</Link>
-        {" · "}
-        <Link className="text-terminal-teal" href="/crypto/categories">Categories</Link>
-      </p>
     </div>
   );
 }

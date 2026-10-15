@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { Panel } from "@/components/ui/Panel";
-import { Badge } from "@/components/ui/Badge";
+import { ScenarioWeightBar, type ScenarioWeights } from "@/components/uncertainty/ScenarioWeightBar";
+import { ProvenanceChip } from "@/components/uncertainty/ProvenanceChip";
 import { changeColor } from "@/lib/format";
 
 interface InstrumentItem {
@@ -73,12 +73,12 @@ function miss(n: number | null | undefined): boolean {
 }
 
 function fmtPx(n: number | null | undefined): string {
-  if (miss(n)) return "Data unavailable";
+  if (miss(n)) return "—";
   return n!.toLocaleString("en-US", { maximumFractionDigits: n! >= 1000 ? 2 : 4 });
 }
 
 function fmtCompact(n: number | null | undefined): string {
-  if (miss(n)) return "Data unavailable";
+  if (miss(n)) return "—";
   const v = n as number;
   const abs = Math.abs(v);
   const sign = v < 0 ? "-" : "";
@@ -89,7 +89,7 @@ function fmtCompact(n: number | null | undefined): string {
 }
 
 function fmtPct(n: number | null | undefined): string {
-  if (miss(n)) return "Data unavailable";
+  if (miss(n)) return "—";
   const sign = (n as number) > 0 ? "+" : "";
   return `${sign}${(n as number).toFixed(2)}%`;
 }
@@ -113,7 +113,7 @@ function pushRecent(q: string) {
   localStorage.setItem(RECENT_KEY, JSON.stringify(next));
 }
 
-export function MarketExplorer() {
+export function MarketExplorer({ scenarioBySymbol = {} }: { scenarioBySymbol?: Record<string, ScenarioWeights> }) {
   const router = useRouter();
   const [draft, setDraft] = useState("");
   const [q, setQ] = useState("");
@@ -265,10 +265,7 @@ export function MarketExplorer() {
 
   return (
     <div className="space-y-3">
-      <Panel
-        title="Search"
-        right={<span className="normal-case tracking-normal text-terminal-muted">Server-side · not the visible page</span>}
-      >
+      <div className="card p-4">
         <div className="relative">
           <input
             value={draft}
@@ -278,16 +275,16 @@ export function MarketExplorer() {
             }}
             onFocus={() => setOpenSuggest(true)}
             placeholder="Symbol, name, provider id, exchange"
-            className="w-full bg-terminal-bg border border-terminal-border rounded px-3 py-2 text-sm outline-none focus:border-terminal-teal"
+            className="w-full bg-surface-0 border border-line-strong rounded-md px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-3 outline-none focus:border-accent"
           />
           {openSuggest && (suggest.length > 0 || recent.length > 0) && draft.trim().length < 2 && recent.length > 0 && (
-            <div className="absolute z-20 mt-1 w-full border border-terminal-border rounded bg-terminal-panel shadow-card">
-              <div className="px-3 py-1 text-2xs text-terminal-muted uppercase">Recent</div>
+            <div className="absolute z-20 mt-1 w-full border border-line-strong rounded-md bg-surface-1 shadow-card">
+              <div className="px-3 py-1 micro-label text-ink-3">Recent</div>
               {recent.map((r) => (
                 <button
                   key={r}
                   type="button"
-                  className="block w-full text-left px-3 py-1.5 text-xs hover:bg-terminal-surface"
+                  className="block w-full text-left px-3 py-1.5 text-xs hover:bg-surface-2"
                   onClick={() => {
                     setDraft(r);
                     setOpenSuggest(false);
@@ -299,20 +296,20 @@ export function MarketExplorer() {
             </div>
           )}
           {openSuggest && suggest.length > 0 && draft.trim().length >= 1 && (
-            <div className="absolute z-20 mt-1 w-full border border-terminal-border rounded bg-terminal-panel shadow-card max-h-64 overflow-auto">
+            <div className="absolute z-20 mt-1 w-full border border-line-strong rounded-md bg-surface-1 shadow-card max-h-64 overflow-auto">
               {suggest.map((s) => (
                 <button
                   key={s.id}
                   type="button"
-                  className="block w-full text-left px-3 py-1.5 text-xs hover:bg-terminal-surface"
+                  className="block w-full text-left px-3 py-1.5 text-xs hover:bg-surface-2"
                   onClick={() => {
                     setOpenSuggest(false);
                     router.push(`/instruments/${encodeURIComponent(s.id)}`);
                   }}
                 >
-                  <span className="text-terminal-accent font-medium">{s.symbol}</span>{" "}
-                  <span className="text-terminal-dim">{s.name}</span>{" "}
-                  <span className="text-terminal-muted">{s.asset_type}</span>
+                  <span className="text-ink font-medium">{s.symbol}</span>{" "}
+                  <span className="text-ink-2">{s.name}</span>{" "}
+                  <span className="text-ink-3">{s.asset_type}</span>
                 </button>
               ))}
             </div>
@@ -328,24 +325,24 @@ export function MarketExplorer() {
                 type="button"
                 onClick={() => setAssetType(chip.id)}
                 className={clsx(
-                  "px-2 py-1 rounded-md border text-2xs",
+                  "px-2.5 py-1 rounded-full border text-caption transition-colors duration-[120ms]",
                   active
-                    ? "border-terminal-teal text-terminal-teal bg-terminal-teal/10"
-                    : "border-terminal-border text-terminal-dim hover:text-terminal-text"
+                    ? "border-accent text-accent bg-accent/10"
+                    : "border-line text-ink-2 hover:text-ink hover:border-line-strong"
                 )}
               >
-                {chip.label} <span className="num text-terminal-muted">{count}</span>
+                {chip.label} <span className="num text-ink-3">{count}</span>
               </button>
             );
           })}
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mt-3">
-          <label className="text-2xs text-terminal-muted">
+          <label className="text-caption text-ink-3">
             Country
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="mt-1 w-full bg-terminal-bg border border-terminal-border rounded px-2 py-1 text-xs text-terminal-text"
+              className="mt-1 w-full bg-surface-0 border border-line rounded-md px-2 py-1.5 text-sm text-ink"
             >
               <option value="">Any</option>
               {(facets?.countries || []).map((c) => (
@@ -356,12 +353,12 @@ export function MarketExplorer() {
             </select>
             {!facets?.countries.length && <div className="mt-1">No country values stored</div>}
           </label>
-          <label className="text-2xs text-terminal-muted">
+          <label className="text-caption text-ink-3">
             Category
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="mt-1 w-full bg-terminal-bg border border-terminal-border rounded px-2 py-1 text-xs text-terminal-text"
+              className="mt-1 w-full bg-surface-0 border border-line rounded-md px-2 py-1.5 text-sm text-ink"
             >
               <option value="">Any</option>
               {(facets?.categories || []).map((c) => (
@@ -371,12 +368,12 @@ export function MarketExplorer() {
               ))}
             </select>
           </label>
-          <label className="text-2xs text-terminal-muted">
+          <label className="text-caption text-ink-3">
             Exchange
             <select
               value={exchange}
               onChange={(e) => setExchange(e.target.value)}
-              className="mt-1 w-full bg-terminal-bg border border-terminal-border rounded px-2 py-1 text-xs text-terminal-text"
+              className="mt-1 w-full bg-surface-0 border border-line rounded-md px-2 py-1.5 text-sm text-ink"
             >
               <option value="">Any</option>
               {(facets?.exchanges || []).map((c) => (
@@ -386,25 +383,25 @@ export function MarketExplorer() {
               ))}
             </select>
           </label>
-          <label className="text-2xs text-terminal-muted">
+          <label className="text-caption text-ink-3">
             Market cap min
             <input
               value={mcapMin}
               onChange={(e) => setMcapMin(e.target.value.replace(/[^0-9.]/g, ""))}
               placeholder="e.g. 1000000000"
-              className="mt-1 w-full bg-terminal-bg border border-terminal-border rounded px-2 py-1 text-xs"
+              className="mt-1 w-full bg-surface-0 border border-line rounded-md px-2 py-1.5 text-sm text-ink"
             />
           </label>
-          <label className="text-2xs text-terminal-muted">
+          <label className="text-caption text-ink-3">
             Volume min
             <input
               value={volMin}
               onChange={(e) => setVolMin(e.target.value.replace(/[^0-9.]/g, ""))}
               placeholder="e.g. 1000000"
-              className="mt-1 w-full bg-terminal-bg border border-terminal-border rounded px-2 py-1 text-xs"
+              className="mt-1 w-full bg-surface-0 border border-line rounded-md px-2 py-1.5 text-sm text-ink"
             />
           </label>
-          <label className="text-2xs text-terminal-muted">
+          <label className="text-caption text-ink-3">
             Sort
             <select
               value={`${sort}:${dir}`}
@@ -413,7 +410,7 @@ export function MarketExplorer() {
                 setSort(s);
                 setDir(d === "asc" ? "asc" : "desc");
               }}
-              className="mt-1 w-full bg-terminal-bg border border-terminal-border rounded px-2 py-1 text-xs text-terminal-text"
+              className="mt-1 w-full bg-surface-0 border border-line rounded-md px-2 py-1.5 text-sm text-ink"
             >
               {SORTS.map((s) => (
                 <option key={s.id + s.dir} value={`${s.id}:${s.dir}`}>
@@ -426,63 +423,87 @@ export function MarketExplorer() {
             </select>
           </label>
         </div>
-      </Panel>
+      </div>
 
-      <Panel title="Universe" right={<span className="num normal-case tracking-normal">{footer}</span>}>
-        {err && <div className="text-xs text-terminal-red mb-2">{err}</div>}
+      <div className="card overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line">
+          <h2 className="text-sm font-semibold text-ink">Universe</h2>
+          <span className="num text-caption text-ink-3">{footer}</span>
+        </div>
+        {err && <div className="px-4 pt-3 text-caption text-scenario-downside">{err}</div>}
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="text-2xs text-terminal-muted uppercase">
-              <tr className="border-b border-terminal-border text-left">
-                <th className="py-1 pr-2">Symbol</th>
-                <th className="py-1 pr-2">Name</th>
-                <th className="py-1 pr-2">Type</th>
-                <th className="py-1 pr-2 text-right">Price</th>
-                <th className="py-1 pr-2 text-right">24h</th>
-                <th className="py-1 pr-2 text-right">Mkt cap</th>
-                <th className="py-1 pr-2 text-right">Volume</th>
-                <th className="py-1 pr-2 text-right">Rank</th>
-                <th className="py-1">Quote</th>
+          <table className="w-full text-sm">
+            <thead className="text-caption text-ink-3 uppercase tracking-wider bg-surface-1">
+              <tr className="border-b border-line text-left">
+                <th className="py-2.5 px-4">Instrument</th>
+                <th className="py-2.5 pr-3">Type</th>
+                <th className="py-2.5 pr-3 text-right">Price</th>
+                <th className="py-2.5 pr-3 text-right">24h</th>
+                <th className="py-2.5 pr-3 text-right">Mkt cap</th>
+                <th className="py-2.5 pr-3 text-right">Volume</th>
+                <th className="py-2.5 pr-3 w-40">Scenario weights</th>
+                <th className="py-2.5 pr-4">Quote</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((row) => (
+              {items.map((row) => {
+                const w = scenarioBySymbol[row.symbol.toUpperCase()];
+                return (
                 <tr
                   key={row.id}
-                  className="border-b border-terminal-border/50 hover:bg-terminal-surface cursor-pointer"
+                  className="border-b border-line/50 hover:bg-surface-2/50 cursor-pointer transition-colors duration-[120ms]"
                   onClick={() => router.push(`/instruments/${encodeURIComponent(row.id)}`)}
                 >
-                  <td className="py-1.5 pr-2 text-terminal-accent">{row.symbol}</td>
-                  <td className="py-1.5 pr-2 text-terminal-dim max-w-[220px] truncate">
-                    {row.name}
-                    {row.category ? <span className="text-terminal-muted"> · {row.category}</span> : null}
+                  <td className="py-2.5 px-4 max-w-[280px]">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-ink font-semibold">{row.symbol}</span>
+                      {!miss(row.rank) && <span className="num text-caption text-ink-3">#{row.rank}</span>}
+                    </div>
+                    <div className="text-caption text-ink-3 truncate">
+                      {row.name}
+                      {row.category ? ` · ${row.category}` : ""}
+                    </div>
                   </td>
-                  <td className="py-1.5 pr-2">
-                    <Badge>{row.asset_type}</Badge>
-                  </td>
-                  <td className="py-1.5 pr-2 text-right num">{fmtPx(row.price)}</td>
-                  <td className={clsx("py-1.5 pr-2 text-right num", miss(row.change_24h_pct) ? "text-terminal-muted" : changeColor(row.change_24h_pct))}>
+                  <td className="py-2.5 pr-3 text-caption text-ink-2 capitalize">{row.asset_type}</td>
+                  <td className="py-2.5 pr-3 text-right num text-ink">{fmtPx(row.price)}</td>
+                  <td className={clsx("py-2.5 pr-3 text-right num", miss(row.change_24h_pct) ? "text-ink-3" : changeColor(row.change_24h_pct))}>
                     {fmtPct(row.change_24h_pct)}
                   </td>
-                  <td className="py-1.5 pr-2 text-right num">{fmtCompact(row.market_cap)}</td>
-                  <td className="py-1.5 pr-2 text-right num">{fmtCompact(row.volume_24h)}</td>
-                  <td className="py-1.5 pr-2 text-right num">{miss(row.rank) ? "Data unavailable" : row.rank}</td>
-                  <td className="py-1.5 text-terminal-muted">{row.quote_status}</td>
+                  <td className="py-2.5 pr-3 text-right num text-ink-2">{fmtCompact(row.market_cap)}</td>
+                  <td className="py-2.5 pr-3 text-right num text-ink-2">{fmtCompact(row.volume_24h)}</td>
+                  <td className="py-2.5 pr-3">
+                    {w ? (
+                      <div title={`Model estimate: Base ${w.base}% · Upside ${w.upside}% · Downside scenario ${w.downside}% · Tail ${w.tail}%`}>
+                        <ScenarioWeightBar weights={w} size="sm" showLegend={false} />
+                        <div className="mt-1 text-[11px] text-ink-3 num">Downside scenario {w.downside}%</div>
+                      </div>
+                    ) : (
+                      <span className="text-caption text-ink-3">—</span>
+                    )}
+                  </td>
+                  <td className="py-2.5 pr-4">
+                    {row.quote_status === "live" ? (
+                      <ProvenanceChip kind="observed" compact source={row.currency ?? undefined} />
+                    ) : (
+                      <span className="text-caption text-ink-3">{row.quote_status === "list_only" ? "Listed only" : "No quote"}</span>
+                    )}
+                  </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
-          {loading && <div className="text-xs text-terminal-muted py-3">Loading instruments…</div>}
+          {loading && <div className="px-4 py-4 text-caption text-ink-3">Loading instruments…</div>}
           {!loading && items.length === 0 && (
-            <div className="empty-state mt-2">No instruments match these filters. Counts are from stored rows only.</div>
+            <div className="m-4 rounded-card border border-dashed border-line-strong p-5 text-sm text-ink-3">No instruments match these filters. Counts are from stored rows only.</div>
           )}
         </div>
         <div ref={sentinel} className="h-8" />
-        <div className="text-2xs text-terminal-muted pt-1 flex justify-between gap-2 flex-wrap">
+        <div className="px-4 pb-3 text-caption text-ink-3 flex justify-between gap-2 flex-wrap">
           <span>{footer}</span>
           <span>{loadingMore ? "Loading next page…" : nextCursor ? "Scroll for the next page" : "End of results"}</span>
         </div>
-      </Panel>
+      </div>
     </div>
   );
 }
