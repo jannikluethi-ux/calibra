@@ -35,6 +35,11 @@ case "${1:-}" in
     stop ;;
 esac
 
+# Single-flight: only one ensure-prod may build/start at a time (boot-hook can fire from many shells)
+exec 8>tmp/ensure-prod.lock
+if ! flock -n 8; then
+  echo "another ensure-prod is already starting"; exit 0
+fi
 [ -d node_modules/next ] || npm install
 [ -f .next/BUILD_ID ] || npm run build || exit 1
 if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
