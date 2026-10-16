@@ -81,3 +81,40 @@ loop launched like the supervisor (setsid, pidfile) — survives only as long as
 tests/test-maintenance.sh   # boot-hook / guard / ensure-prod gating (temp dirs, mocked start, spare port)
 tests/test-uptime.sh        # uptime-check, heartbeat, validator, outage-duration (mock HTTP server)
 ```
+
+## Box monitor loop + notification outbox (2026-10-16, not started by default)
+Root cause of irregular monitor timing: server-side routine dispatch latency (median +6.4 min, max +8.2 min, gaps up to
+20.4 min; box-side check runtime < 1 s). Evidence: /workspace/calibra-scheduler-*/scheduler-root-cause.md.
+```
+scripts/monitor-loop.sh start    # creates MONITOR_LOOP_ENABLED, launches detached loop (setsid/nohup, flock single instance)
+scripts/monitor-loop.sh status   # rc 0 running; prints heartbeat + last scheduler-runs rows
+scripts/monitor-loop.sh stop     # stops loop, removes enable flag (boot-hook will not restart it)
+```
+* Slots :07/:22/:37/:52 (epoch % 900 == 420), each run `timeout 60 uptime-check.sh` with UPTIME_CALLER=loop.
+* `scheduler-runs.csv`: expected_ts,actual_start,end,duration_s,lateness_s,exit,result,notify. Skipped slots -> `MISSED`
+  rows on the next iteration; hung check -> `TIMEOUT` (exit 124), next slot unaffected.
+* Boot-hook restarts the loop in any new shell only if `MONITOR_LOOP_ENABLED` exists and it is not running.
+* While enabled, `uptime-check.sh` (any caller, e.g. the routine) exits 0 with `SKIPPED-RECENT` and writes nothing if a
+  check completed < 5 min ago (`UPTIME_MIN_INTERVAL_S`), and appends every notify≠none to `notify-outbox.jsonl`.
+  Flag absent = previous behaviour exactly (no guard, no outbox).
+* Loop flags `heartbeat_routine_stale` in the outbox if `.heartbeat-routine-last` (written by every monitor-heartbeat run)
+  is > 40 min old; `heartbeat_routine_recovered` when it resumes.
+* `monitor-heartbeat.sh` kinds: normal, monitor_stale, heartbeat_recovery, loop_dead (loop enabled but pid dead or
+  heartbeat file > 5 min old), loop_recovered.
+
+Outbox (routines deliver; box cannot message chat):
+```
+scripts/notify-outbox.sh list-pending [--json]
+scripts/notify-outbox.sh mark-delivered <ID> <MSGREF>    # after chat delivery confirmed; appended to notify-outbox.delivered.jsonl
+```
+Routine contract once enabled: run the check/heartbeat, then `list-pending --json`, deliver each `message`, then
+`mark-delivered`. Deliver from the outbox only (not also from the JSON `notify` field) to avoid duplicates.
+
+Heartbeat test mode (never touches live state; refuses the live dir; messages tagged [TEST]):
+```
+HEARTBEAT_TEST=1 HEARTBEAT_STATE_DIR=/tmp/hb-test scripts/monitor-heartbeat.sh
+```
+Uses <dir>/uptime-state.json, .heartbeat-dedupe.json, notify-outbox-test.jsonl, loop files in <dir>.
+Threshold: keep HEARTBEAT_STALE_MIN 25 while the routine is the only caller; 20 is justified once the loop runs
+(15 min cadence + 5 min slack vs loop lateness < 2 s).
+Tests: `bash tests/test-monitor-loop.sh`.

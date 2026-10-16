@@ -9,6 +9,12 @@ __calibra_boot_hook() {
   [ -x "$HOOK_DIR/scripts/ensure-prod.sh" ] || return 0
   [ -f "$HOOK_DIR/scripts/lib-maintenance.sh" ] && . "$HOOK_DIR/scripts/lib-maintenance.sh"
   local SD="${CALIBRA_STATE_DIR:-$HOOK_DIR/tmp}"
+  # Box monitor loop: (re)start only if enabled via `scripts/monitor-loop.sh start` and not running.
+  local MD="${MONITOR_DIR:-${UPTIME_DIR:-/workspace/calibra-stabilization}}"
+  if [ -f "$MD/MONITOR_LOOP_ENABLED" ] && [ -x "$HOOK_DIR/scripts/monitor-loop.sh" ] && \
+     ! { [ -f "$MD/monitor-loop.pid" ] && kill -0 "$(cat "$MD/monitor-loop.pid" 2>/dev/null)" 2>/dev/null; }; then
+    MONITOR_DIR="$MD" "$HOOK_DIR/scripts/monitor-loop.sh" start >/dev/null 2>&1 </dev/null
+  fi
   ss -ltn 2>/dev/null | grep -q ":${PORT} " && return 0
   mkdir -p "$SD"
   if type calibra_maintenance_active >/dev/null 2>&1 && CALIBRA_HOME="$HOOK_DIR" CALIBRA_STATE_DIR="$SD" calibra_maintenance_active boot-hook; then

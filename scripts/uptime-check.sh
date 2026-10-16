@@ -11,6 +11,12 @@
 # Env: UPTIME_DIR (default /workspace/calibra-stabilization), CALIBRA_BASE_URL (http://127.0.0.1:3456),
 #   CALIBRA_STATE_DIR (repo tmp; CRASHLOOP + restart-events.log + prod.log, read-only), UPTIME_CURL_MAX (10s),
 #   UPTIME_LOCK_WAIT (60s), UPTIME_TICK_STALE_MIN (30), UPTIME_STALE_MIN (20).
+# Box scheduler integration (scripts/monitor-loop.sh), active only when $UPTIME_DIR/MONITOR_LOOP_ENABLED
+# exists (or forced via env), so committing this changes nothing until the loop is enabled:
+#   * recent-check guard: if the last completed check is < UPTIME_MIN_INTERVAL_S (300 when enabled, else 0)
+#     old, exit 0 with status SKIPPED-RECENT, writing NO row/state/transition (routine = backup caller).
+#   * notify outbox: every notify!=none is appended to notify-outbox.jsonl (UPTIME_OUTBOX=1|0 forces).
+#   UPTIME_CALLER (loop|routine|manual) is recorded in state as last_check_caller.
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 UPTIME_DIR="${UPTIME_DIR:-/workspace/calibra-stabilization}"
@@ -23,6 +29,26 @@ if ! flock -w "${UPTIME_LOCK_WAIT:-60}" 7; then
   printf '{"ok":false,"status":"SKIPPED","notify":"none","error":"another uptime-check held the lock > %ss; no row written"}\n' "${UPTIME_LOCK_WAIT:-60}"
   exit 75
 fi
+ENABLED=0; [ -f "$UPTIME_DIR/MONITOR_LOOP_ENABLED" ] && ENABLED=1
+MININT="${UPTIME_MIN_INTERVAL_S:-$([ $ENABLED = 1 ] && echo 300 || echo 0)}"
+if [ "$MININT" -gt 0 ] 2>/dev/null; then
+  RECENT="$(python3 - "$UPTIME_DIR/uptime-state.json" "$MININT" <<'PY'
+import json,sys,time
+from datetime import datetime
+try:
+    s=json.load(open(sys.argv[1])); t=s.get("last_check_at") or s.get("lastCheck")
+    age=time.time()-datetime.fromisoformat(t.replace("Z","+00:00")).timestamp()
+    print(f"{age:.0f}|{t}|{s.get('last_check_caller','')}" if 0<=age<float(sys.argv[2]) else "")
+except Exception: print("")
+PY
+)"
+  if [ -n "$RECENT" ]; then
+    IFS='|' read -r AGE LAST LC <<<"$RECENT"
+    printf '{"ok":true,"status":"SKIPPED-RECENT","notify":"none","last_check_at":"%s","age_s":%s,"last_check_caller":"%s","min_interval_s":%s,"detail":"check completed %ss ago; no row written"}\n' "$LAST" "$AGE" "$LC" "$MININT" "$AGE"
+    exit 0
+  fi
+fi
+export UPTIME_OUTBOX="${UPTIME_OUTBOX:-$ENABLED}" UPTIME_CALLER="${UPTIME_CALLER:-unknown}"
 TMPD="$(mktemp -d)"; trap 'rm -rf "$TMPD"' EXIT
 TS="$(date -Is)"
 ROOT_HTTP="$(curl -s -o /dev/null --connect-timeout 5 --max-time "$MAXT" -w '%{http_code}' "$BASE/" 2>/dev/null)"; ROOT_RC=$?
@@ -120,7 +146,7 @@ with open(LOG, "a", newline="", encoding="utf-8") as f:
             if rf.read(1) not in (b"\n",): f.write("\n")  # never glue onto a partial last line
     f.write(line); f.flush(); os.fsync(f.fileno())
 state.update(status=status if status != "RECOVERED" else "UP", lastCheck=ts, last_check_at=ts,
-             last_status_row=status, lastDetail=detail, schema=2)
+             last_status_row=status, lastDetail=detail, schema=2, last_check_caller=E.get("UPTIME_CALLER","unknown"))
 tmp = STATE + f".tmp.{os.getpid()}"
 with open(tmp, "w") as f: json.dump(state, f, indent=2); f.write("\n"); f.flush(); os.fsync(f.fileno())
 os.replace(tmp, STATE)
@@ -129,6 +155,13 @@ if transition:
         f.write(json.dumps({"at": ts, "transition": transition, "detail": detail, "outage": outage,
                             "last_healthy_at": state.get("last_healthy_before_outage_at"),
                             "first_failed_at": state.get("first_failed_at")}) + "\n")
+if notify != "none" and E.get("UPTIME_OUTBOX") == "1":
+    import uuid
+    with open(os.path.join(U, "notify-outbox.jsonl"), "a") as f:
+        f.write(json.dumps({"id": f"{ts.replace(':','')}-{notify}-{uuid.uuid4().hex[:6]}", "type": notify,
+                            "kind": transition or notify, "created": ts, "delivered": False, "source": "uptime-check",
+                            "caller": E.get("UPTIME_CALLER", "unknown"),
+                            "message": f"Calibra {status}: {detail}"}) + "\n")
 out = {"ok": True, "status": status, "notify": notify, "transition": transition, "timestamp": ts,
        "root_http": root, "scheduler_http": sched, "dataQuality": dq, "lastTick": last_tick,
        "tick_age_min": age, "crashloop": E["CRASH"], "detail": detail,

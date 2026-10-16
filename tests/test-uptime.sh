@@ -13,7 +13,7 @@ echo up >"$W/mode"
 python3 "$REPO/tests/mock_calibra.py" "$P" "$W/mode" & MOCK=$!
 trap 'kill $MOCK 2>/dev/null; rm -rf "$W"' EXIT
 for _ in $(seq 20); do curl -s -o /dev/null "http://127.0.0.1:$P/" && break; sleep 0.2; done
-export UPTIME_DIR="$W/u" CALIBRA_STATE_DIR="$W/sd" CALIBRA_BASE_URL="http://127.0.0.1:$P" UPTIME_CURL_MAX=3
+export UPTIME_MIN_INTERVAL_S=0 UPTIME_DIR="$W/u" CALIBRA_STATE_DIR="$W/sd" CALIBRA_BASE_URL="http://127.0.0.1:$P" UPTIME_CURL_MAX=3
 mkdir -p "$W/u" "$W/sd"
 # seed a log containing a historical malformed row: must survive byte-for-byte
 printf 'timestamp,status,root_http,scheduler_http,dataQuality,lastTick,tick_age_min,crashloop,detail\n2026-10-16T11:56:43+02:00,DOWN,legacy 3-field row\n' >"$W/u/uptime-log.csv"
