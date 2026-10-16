@@ -4,6 +4,11 @@
 #   scripts/ensure-prod.sh --build  -> rebuild (under the same flock), then restart server
 #   scripts/ensure-prod.sh --stop   -> stop supervisor and server
 #   scripts/ensure-prod.sh --reset  -> clear a CRASHLOOP marker, then start
+#   scripts/ensure-prod.sh --start  -> explicit manual start (same as no args, caller=supervisor-manual)
+#   add --override-maintenance to start even while scripts/maintenance.sh guard is active
+# Maintenance guard: every auto-start path (no args, boot-hook, crash-restart inside --loop) refuses
+# to start while tmp/MAINTENANCE is active and unexpired. Starts/stops/blocks are logged to
+# tmp/restart-events.log with caller=$CALIBRA_CALLER (boot-hook sets boot-hook; default supervisor-manual).
 # The loop runs `next start -p $PORT`, captures the real exit code, restarts with bounded
 # exponential back-off (5s doubling to 300s; reset after 10 min stable uptime) and stops with a
 # CRASHLOOP marker after CRASH_MAX crashes within CRASH_WINDOW seconds. If the port is already
@@ -24,12 +29,26 @@ STABLE_SECS="${CALIBRA_STABLE_SECS:-600}"
 CRASH_MAX="${CALIBRA_CRASH_MAX:-5}"
 CRASH_WINDOW="${CALIBRA_CRASH_WINDOW:-900}"
 HEALTH_URL="http://127.0.0.1:${PORT}/api/scheduler/status"
+CALIBRA_HOME="$(pwd)"; export CALIBRA_STATE_DIR="$STATE_DIR"
+. scripts/lib-maintenance.sh
+CALLER="${CALIBRA_CALLER:-supervisor-manual}"
+OVERRIDE="${CALIBRA_OVERRIDE_MAINTENANCE:-0}"
+ARGS=()
+for a in "$@"; do
+  case "$a" in
+    --override-maintenance) OVERRIDE=1 ;;
+    --start) ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
 
 log() { echo "[$(date -Is)] $*" >>"$LOG"; }
 port_busy() { ss -ltn 2>/dev/null | grep -q ":${PORT} "; }
 healthy() { [ "$(curl -s -o /dev/null -m 10 -w '%{http_code}' "$HEALTH_URL")" = "200" ]; }
 
 stop() {
+  calibra_event "$CALLER" stop "ensure-prod --stop"
   # supervisor runs in its own session (setsid), so kill the whole process group
   if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
     kill -TERM -- "-$(cat "$PIDFILE")" 2>/dev/null || kill "$(cat "$PIDFILE")"
@@ -59,7 +78,13 @@ loop() {
       log "port $PORT busy but health check failed; counting as failed start"
       rc=98; up=0
     else
+      if [ "$OVERRIDE" != 1 ] && calibra_maintenance_active supervisor-loop; then
+        log "maintenance guard active; supervisor loop not (re)starting server; exiting"
+        calibra_event supervisor-loop start-blocked-maintenance "loop exit; reason=$(calibra_guard_get reason)"
+        rm -f "$PIDFILE"; exit 0
+      fi
       log "starting server on :$PORT"
+      calibra_event supervisor-loop server-start "next start -p $PORT (launched by $CALLER)"
       local start; start=$(date +%s)
       run_server >>"$LOG" 2>&1 &
       child=$!
@@ -115,6 +140,17 @@ if port_busy; then
   if healthy; then echo "port $PORT already served by a healthy instance; not starting another"; exit 0; fi
   echo "port $PORT busy by another process (dev server?); stop it first"; exit 1
 fi
+if calibra_maintenance_active "$CALLER"; then
+  if [ "$OVERRIDE" = 1 ]; then
+    calibra_event "$CALLER" start-override-maintenance "starting despite active guard (reason=$(calibra_guard_get reason))"
+  else
+    calibra_event "$CALLER" start-blocked-maintenance "reason=$(calibra_guard_get reason)"
+    calibra_maintenance_notice
+    echo "maintenance guard active; not starting (use --start --override-maintenance to force)"; exit 3
+  fi
+fi
+calibra_event "$CALLER" supervisor-start "starting supervisor loop on :$PORT"
+export CALIBRA_CALLER="$CALLER" CALIBRA_OVERRIDE_MAINTENANCE="$OVERRIDE"
 # 8>&- : the long-lived supervisor must NOT inherit the flock fd (it would hold the lock forever)
 nohup setsid "$0" --loop 8>&- >/dev/null 2>&1 &
 sleep 1

@@ -45,3 +45,4 @@ next-env.d.ts
 # optional local tooling
 .calibra/
 tmp/
+__pycache__/
