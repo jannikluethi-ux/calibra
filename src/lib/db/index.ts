@@ -144,6 +144,23 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_forecasts_horizon_end ON forecasts(horizon_end);
   `);
 
+  // One scenario per event: collapse any legacy duplicates (keep newest), then enforce uniqueness
+  // on the JSON eventId so fresh and existing DBs both get the constraint.
+  try {
+    db.exec(`
+      DELETE FROM scenarios WHERE json_extract(data, '$.eventId') IS NOT NULL AND rowid NOT IN (
+        SELECT rowid FROM (
+          SELECT rowid, ROW_NUMBER() OVER (
+            PARTITION BY json_extract(data, '$.eventId') ORDER BY created_at DESC, rowid DESC
+          ) AS rn FROM scenarios WHERE json_extract(data, '$.eventId') IS NOT NULL
+        ) WHERE rn = 1
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_scenarios_event_id ON scenarios(json_extract(data, '$.eventId'));
+    `);
+  } catch (e) {
+    console.error("[db] ux_scenarios_event_id migration failed:", e);
+  }
+
   ensureInstrumentTables(db);
 }
 

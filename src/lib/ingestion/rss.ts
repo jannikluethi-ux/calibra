@@ -318,19 +318,28 @@ export async function ingestRssFeeds(): Promise<{ live: number; demo: number; ev
   return { live, demo, events: stored };
 }
 
-export function getEvents(limit = 100): FinancialEvent[] {
+export function getEvents(limit = 100, opts: { includeDemo?: boolean } = {}): FinancialEvent[] {
   // Same order as the previous full-table load + slice. LIMIT avoids parsing
   // every stored event (thousands of rows) on each dashboard read.
+  // Demo/illustrative rows (quality='demo') are excluded from live views and counts;
+  // they are only returned when no non-demo events exist (empty-DB bootstrap).
   const n = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 100;
-  const rows = getDb()
+  const db = getDb();
+  if (!opts.includeDemo) {
+    const rows = db
+      .prepare(`SELECT data FROM events WHERE quality != 'demo' ORDER BY published_at DESC LIMIT ?`)
+      .all(n) as { data: string }[];
+    if (rows.length) return rows.map((r) => JSON.parse(r.data) as FinancialEvent);
+  }
+  const rows = db
     .prepare(`SELECT data FROM events ORDER BY published_at DESC LIMIT ?`)
     .all(n) as { data: string }[];
   return rows.map((r) => JSON.parse(r.data) as FinancialEvent);
 }
 
 export function getEvent(id: string): FinancialEvent | null {
-  const all = getEvents(500);
-  return all.find((e) => e.id === id) ?? null;
+  const row = getDb().prepare(`SELECT data FROM events WHERE id = ?`).get(id) as { data: string } | undefined;
+  return row ? (JSON.parse(row.data) as FinancialEvent) : null;
 }
 
 export function ensureDemoEventsIfEmpty() {

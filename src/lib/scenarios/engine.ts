@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import type { FinancialEvent, Scenario, ScenarioBranch } from "../types";
-import { getDb, upsertJson, getJsonAll } from "../db";
+import { getDb, upsertJson } from "../db";
 import { getEvents } from "../ingestion/rss";
 
 function branch(
@@ -306,20 +306,25 @@ export function rebuildScenariosFromEvents(limit = 12): Scenario[] {
   return scenarios;
 }
 
+// Scenarios derived from demo/illustrative events are excluded from live views and counts
+// (fallback to all rows only when nothing else exists, e.g. empty-DB bootstrap).
+const NOT_DEMO = `COALESCE((SELECT e.quality FROM events e WHERE e.id = json_extract(scenarios.data, '$.eventId')), '') != 'demo'`;
+
 export function getScenarios(limit?: number): Scenario[] {
-  if (limit == null) {
-    return getJsonAll<Scenario>("scenarios", "created_at DESC");
-  }
-  // Optional cap matches getScenarios().slice(0, n) (created_at DESC).
-  const n = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0;
-  const rows = getDb()
-    .prepare(`SELECT data FROM scenarios ORDER BY created_at DESC LIMIT ?`)
+  const n = limit == null ? -1 : Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0;
+  const db = getDb();
+  let rows = db
+    .prepare(`SELECT data FROM scenarios WHERE ${NOT_DEMO} ORDER BY created_at DESC LIMIT ?`)
     .all(n) as { data: string }[];
+  if (!rows.length) {
+    rows = db.prepare(`SELECT data FROM scenarios ORDER BY created_at DESC LIMIT ?`).all(n) as { data: string }[];
+  }
   return rows.map((r) => JSON.parse(r.data) as Scenario);
 }
 
 export function getScenario(id: string): Scenario | null {
-  return getScenarios().find((s) => s.id === id) ?? null;
+  const row = getDb().prepare(`SELECT data FROM scenarios WHERE id = ?`).get(id) as { data: string } | undefined;
+  return row ? (JSON.parse(row.data) as Scenario) : null;
 }
 
 export function ensureScenarios() {
