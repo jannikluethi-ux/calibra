@@ -1,29 +1,67 @@
 import Parser from "rss-parser";
 import { randomUUID } from "crypto";
-import type { FinancialEvent, DataQuality, SourceTier } from "../types";
+import type { FinancialEvent, DataQuality, SourceTier, EventProvenance } from "../types";
 import { classifyEventV2, reclassifyEventV2 } from "../classification/classify_v2";
 import { getDb, upsertJson, setMeta } from "../db";
 import { upsertEventDeduped } from "./dedupe";
+import { recordAttempt, skipCheck } from "../sources/health";
+import { classifyFailure, mapWithConcurrency, statusFromError, withRetry, withTimeout, type AttemptOutcome } from "../sources/health-core";
 
 const parser = new Parser({
   timeout: 12000,
   headers: { "User-Agent": "GlobalFinancialIntelligenceAgent/0.1 (research; +local)" },
 });
 
-interface FeedDef {
+export interface FeedDef {
+  id: string;
   name: string;
   url: string;
   tier: SourceTier;
+  /** false = not called; health shows "disabled" with the reason. */
+  active: boolean;
+  inactiveReason?: string;
 }
 
-/** Public RSS endpoints — may fail; we degrade to demo cache */
+/**
+ * Public RSS endpoints. A failing feed is recorded in source_health and skipped; it is never
+ * replaced by demo/synthetic events (demo rows exist only for an empty-DB bootstrap).
+ */
 export const RSS_FEEDS: FeedDef[] = [
-  { name: "Federal Reserve Press", url: "https://www.federalreserve.gov/feeds/press_all.xml", tier: 1 },
-  { name: "ECB Press", url: "https://www.ecb.europa.eu/rss/press.html", tier: 1 },
-  { name: "IMF News", url: "https://www.imf.org/en/News/RSS", tier: 1 },
-  { name: "Reuters Business", url: "https://feeds.reuters.com/reuters/businessNews", tier: 3 },
-  { name: "CNBC Top News", url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114", tier: 3 },
+  { id: "rss_federal_reserve", name: "Federal Reserve Press", url: "https://www.federalreserve.gov/feeds/press_all.xml", tier: 1, active: true },
+  { id: "rss_ecb", name: "ECB Press", url: "https://www.ecb.europa.eu/rss/press.html", tier: 1, active: true },
+  { id: "rss_imf", name: "IMF News", url: "https://www.imf.org/en/News/RSS", tier: 1, active: true },
+  {
+    id: "rss_reuters",
+    name: "Reuters Business",
+    url: "https://feeds.reuters.com/reuters/businessNews",
+    tier: 3,
+    active: false,
+    inactiveReason: "feeds.reuters.com retired (DNS lookup fails; 0 events ever stored); disabled 2026-10-17",
+  },
+  { id: "rss_cnbc", name: "CNBC Top News", url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114", tier: 3, active: true },
 ];
+
+export interface FeedItem {
+  title?: string;
+  link?: string;
+  isoDate?: string;
+  pubDate?: string;
+  contentSnippet?: string;
+  content?: string;
+  summary?: string;
+}
+export type FeedFetcher = (url: string) => Promise<FeedItem[]>;
+
+const defaultFetcher: FeedFetcher = async (url) => {
+  const parsed = await withTimeout(parser.parseURL(url), 15000, url);
+  return (parsed.items || []) as FeedItem[];
+};
+
+function parseDate(s: string | undefined): string | null {
+  if (!s) return null;
+  const t = Date.parse(s);
+  return Number.isFinite(t) ? new Date(t).toISOString() : null;
+}
 
 const DEMO_EVENTS: Omit<FinancialEvent, "id" | "ingestedAt">[] = [
   {
@@ -261,41 +299,101 @@ function itemToEvent(
   };
 }
 
-export async function ingestRssFeeds(): Promise<{ live: number; demo: number; events: FinancialEvent[] }> {
+export interface FeedRunReport {
+  id: string;
+  name: string;
+  outcome: AttemptOutcome | { ok: false; errorClass: "disabled" | "skipped"; error: string };
+  attempts: number;
+  items: number;
+}
+
+export async function ingestRssFeeds(deps: { fetchFeed?: FeedFetcher; feeds?: FeedDef[]; retryBaseMs?: number } = {}): Promise<{
+  live: number;
+  demo: number;
+  events: FinancialEvent[];
+  feeds: FeedRunReport[];
+}> {
   getDb();
+  const fetchFeed = deps.fetchFeed ?? defaultFetcher;
+  const feeds = deps.feeds ?? RSS_FEEDS;
   const collected: FinancialEvent[] = [];
+  const reports: FeedRunReport[] = [];
   let live = 0;
 
-  for (const feed of RSS_FEEDS) {
-    try {
-      const parsed = await parser.parseURL(feed.url);
-      const items = (parsed.items || []).slice(0, 8);
-      for (const item of items) {
+  const results = await mapWithConcurrency(feeds, 3, async (feed) => {
+    if (!feed.active) {
+      recordAttempt(feed.id, { ok: false, errorClass: "disabled", error: feed.inactiveReason ?? "inactive" });
+      return { feed, report: { id: feed.id, name: feed.name, outcome: { ok: false as const, errorClass: "disabled" as const, error: feed.inactiveReason ?? "inactive" }, attempts: 0, items: 0 }, events: [] as FinancialEvent[] };
+    }
+    const sk = skipCheck(feed.id);
+    if (sk.skip) {
+      return { feed, report: { id: feed.id, name: feed.name, outcome: { ok: false as const, errorClass: "skipped" as const, error: sk.reason ?? "back-off" }, attempts: 0, items: 0 }, events: [] as FinancialEvent[] };
+    }
+    const t0 = Date.now();
+    const r = await withRetry<FeedItem[]>(
+      async () => {
+        try {
+          const items = await fetchFeed(feed.url);
+          return { outcome: { ok: true, errorClass: "ok", items: items.length }, value: items };
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          const status = statusFromError(e);
+          return { outcome: { ok: false, errorClass: classifyFailure({ status, error: msg }), httpStatus: status, error: msg.slice(0, 300) } };
+        }
+      },
+      { retries: 1, baseDelayMs: deps.retryBaseMs ?? 1000 }
+    );
+    const retrievedAt = new Date().toISOString();
+    const events: FinancialEvent[] = [];
+    let newest: string | null = null;
+    if (r.outcome.ok && r.value) {
+      for (const item of r.value.slice(0, 8)) {
         const title = item.title?.trim();
         if (!title) continue;
         const body = (item.contentSnippet || item.content || item.summary || "").toString();
-        const publishedAt = item.isoDate || item.pubDate || new Date().toISOString();
-        const ev = itemToEvent(title, body, item.link, new Date(publishedAt).toISOString(), feed, "live");
-        collected.push(ev);
-        live++;
+        const srcPublished = parseDate(item.isoDate) ?? parseDate(item.pubDate);
+        if (srcPublished && (!newest || srcPublished > newest)) newest = srcPublished;
+        // published_at is a NOT NULL sort key; when the item carries no date we sort by retrieval time
+        // but record sourcePublishedAt = null and mark the field as missing in provenance.
+        const ev = itemToEvent(title, body, item.link, srcPublished ?? retrievedAt, feed, "live");
+        ev.provenance = {
+          sourceId: feed.id,
+          sourceName: feed.name,
+          feedUrl: feed.url,
+          itemUrl: item.link ?? null,
+          sourcePublishedAt: srcPublished,
+          retrievedAt,
+          fields: {
+            title: "observed",
+            summary: body ? "observed" : "missing",
+            publishedAt: srcPublished ? "observed" : "missing",
+            classification: "derived",
+            impactScore: "estimated",
+            transmissionMechanism: "estimated",
+          },
+          transformations: ["rss-parse", "title-trim-240", "body-trim-4000", "classify_v2 (heuristic)", "event_dedupe_v1 (exact normalized title, 72h)"],
+          corroboration: null,
+          pipeline: "ingestRssFeeds v2 (2026-10-17)",
+        } satisfies EventProvenance;
+        events.push(ev);
       }
-    } catch {
-      // feed failed — continue
+    }
+    const outcome: AttemptOutcome = { ...r.outcome, latencyMs: Date.now() - t0, items: events.length, newestObservationAt: newest };
+    recordAttempt(feed.id, outcome);
+    return { feed, report: { id: feed.id, name: feed.name, outcome, attempts: r.attempts, items: events.length }, events };
+  });
+
+  for (const res of results) {
+    if (res.status === "fulfilled") {
+      reports.push(res.value.report);
+      collected.push(...res.value.events);
+      live += res.value.events.length;
     }
   }
 
-  let demo = 0;
-  if (collected.length < 3) {
-    for (const d of DEMO_EVENTS) {
-      const ev: FinancialEvent = {
-        ...d,
-        id: randomUUID(),
-        ingestedAt: new Date().toISOString(),
-      };
-      collected.push(ev);
-      demo++;
-    }
-  }
+  // No synthetic substitution: when feeds fail we store nothing new. Demo rows are only seeded by
+  // ensureDemoEventsIfEmpty() for a completely empty database and stay labeled quality='demo'.
+  const demo = 0;
 
   // Batch-local exact-title dedupe, then DB near-dupe upsert (normalize + 72h window).
   const seen = new Set<string>();
@@ -310,15 +408,17 @@ export async function ingestRssFeeds(): Promise<{ live: number; demo: number; ev
   const stored: FinancialEvent[] = [];
   for (const ev of unique) {
     const { event } = upsertEventDeduped(ev);
-    // Avoid returning the same existing row twice in one ingest pass
     if (!stored.some((s) => s.id === event.id)) stored.push(event);
   }
 
-  setMeta("lastEventUpdate", new Date().toISOString());
-  return { live, demo, events: stored };
+  if (live > 0) setMeta("lastEventUpdate", new Date().toISOString());
+  return { live, demo, events: stored, feeds: reports };
 }
 
-export function getEvents(limit = 100, opts: { includeDemo?: boolean } = {}): FinancialEvent[] {
+/** Excludes events linked as non-canonical members of a same-story cluster (they stay stored). */
+const CANONICAL_ONLY = `AND id NOT IN (SELECT event_id FROM event_clusters WHERE event_id != canonical_event_id)`;
+
+export function getEvents(limit = 100, opts: { includeDemo?: boolean; canonicalOnly?: boolean } = {}): FinancialEvent[] {
   // Same order as the previous full-table load + slice. LIMIT avoids parsing
   // every stored event (thousands of rows) on each dashboard read.
   // Demo/illustrative rows (quality='demo') are excluded from live views and counts;
@@ -327,7 +427,7 @@ export function getEvents(limit = 100, opts: { includeDemo?: boolean } = {}): Fi
   const db = getDb();
   if (!opts.includeDemo) {
     const rows = db
-      .prepare(`SELECT data FROM events WHERE quality != 'demo' ORDER BY published_at DESC LIMIT ?`)
+      .prepare(`SELECT data FROM events WHERE quality != 'demo' ${opts.canonicalOnly ? CANONICAL_ONLY : ""} ORDER BY published_at DESC LIMIT ?`)
       .all(n) as { data: string }[];
     if (rows.length) return rows.map((r) => JSON.parse(r.data) as FinancialEvent);
   }
