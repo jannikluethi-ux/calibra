@@ -220,6 +220,8 @@ test("risk profile: factors with provenance, identity, collisions, incidents, be
   assert.equal(b.behavior.corrEth.pairs, 60);
   assert.ok(b.behavior.corrEth.value != null && b.behavior.corrEth.value > 0.99);
   assert.equal(b.behavior.corrBtc.value, null, "no self-correlation");
+  assert.equal(b.behavior.longHorizonDays, null, "60-day window is not presented as ~90d");
+  assert.ok(b.behavior.return30d != null);
   assert.ok(b.history.some((h) => h.model_version === "research_v1"), "history shows archived v1 rows");
   assert.equal(b.protocolMapped, false);
 

@@ -273,7 +273,7 @@ export interface RiskProfile {
   history: { model_version: string; computed_at: string; score: number | null; band: string; risk_type: string | null; confidence: number | null }[];
   inputs: RiskInputs | null;
   snapshot: Record<string, unknown> | null;
-  behavior: { return7d: number | null; return30d: number | null; return90d: number | null; vol30d: number | null; maxDrawdown90d: number | null; corrBtc: { value: number | null; pairs: number }; corrEth: { value: number | null; pairs: number }; historyDays: number; firstDay: string | null; lastDay: string | null };
+  behavior: { return7d: number | null; return30d: number | null; return90d: number | null; longHorizonDays: number | null; vol30d: number | null; maxDrawdown90d: number | null; corrBtc: { value: number | null; pairs: number }; corrEth: { value: number | null; pairs: number }; historyDays: number; firstDay: string | null; lastDay: string | null };
   contracts: { network: string; contract_address: string; retrieved_at: string }[];
   categories: { category_slug: string; retrieved_at: string }[];
   incidents: { name: string; incident_date: string; amount_usd: number | null; returned_usd: number | null; classification: string | null; technique: string | null; source_url: string | null }[];
@@ -322,10 +322,13 @@ export function getRiskProfile(instrumentId: string, nowIso = new Date().toISOSt
   const own = ser(instrumentId);
   const btc = instrumentId === "crypto:coingecko:bitcoin" ? [] : ser("crypto:coingecko:bitcoin");
   const eth = instrumentId === "crypto:coingecko:ethereum" ? [] : ser("crypto:coingecko:ethereum");
+  // Long horizon = the full stored window when it spans at least 80 days (shown with its exact length).
+  const longHorizonDays = own.length - 1 >= 80 ? own.length - 1 : null;
   const behavior = {
     return7d: returnOver(own, 7),
     return30d: returnOver(own, 30),
-    return90d: returnOver(own, 89),
+    return90d: longHorizonDays ? returnOver(own, longHorizonDays) : null,
+    longHorizonDays,
     vol30d: realizedVol(own, 30),
     maxDrawdown90d: maxDrawdown(own),
     corrBtc: btc.length ? returnCorrelation(own, btc) : { value: null, pairs: 0 },

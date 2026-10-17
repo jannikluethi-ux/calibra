@@ -164,11 +164,11 @@ export function RiskProfileSections({ p, hasCoinbase }: { p: RiskProfile; hasCoi
         ) : (
           <table className="w-full text-sm" data-testid="rp-behavior">
             <tbody>
-              <Row label="Return 7d / 30d / ~90d" value={`${fmtPct(p.behavior.return7d)} / ${fmtPct(p.behavior.return30d)} / ${fmtPct(p.behavior.return90d)}`} basis="measured" />
+              <Row label={`Return 7d / 30d / ${p.behavior.longHorizonDays ? `${p.behavior.longHorizonDays}d` : "~90d"}`} value={`${fmtPct(p.behavior.return7d)} / ${fmtPct(p.behavior.return30d)} / ${fmtPct(p.behavior.return90d)}`} basis="measured" />
               <Row label="Realised volatility (30d, annualised)" value={or(p.behavior.vol30d, (n) => `${n.toFixed(1)}%`)} basis={p.behavior.vol30d != null ? "measured" : "unknown"} />
               <Row label="Max drawdown (stored window)" value={or(p.behavior.maxDrawdown90d, (n) => `${n.toFixed(1)}%`)} basis={p.behavior.maxDrawdown90d != null ? "measured" : "unknown"} />
-              <Row label="Correlation with BTC" value={p.behavior.corrBtc.value == null ? <span className="text-ink-3">UNKNOWN ({p.behavior.corrBtc.pairs} overlapping days; needs ≥30)</span> : `${p.behavior.corrBtc.value.toFixed(2)} (${p.behavior.corrBtc.pairs} days)`} basis={p.behavior.corrBtc.value != null ? "measured" : "unknown"} />
-              <Row label="Correlation with ETH" value={p.behavior.corrEth.value == null ? <span className="text-ink-3">UNKNOWN ({p.behavior.corrEth.pairs} overlapping days; needs ≥30)</span> : `${p.behavior.corrEth.value.toFixed(2)} (${p.behavior.corrEth.pairs} days)`} basis={p.behavior.corrEth.value != null ? "measured" : "unknown"} />
+              <Row label="Correlation with BTC" value={p.instrumentId === "crypto:coingecko:bitcoin" ? <span className="text-ink-3">not applicable (this is BTC)</span> : p.behavior.corrBtc.value == null ? <span className="text-ink-3">UNKNOWN ({p.behavior.corrBtc.pairs} overlapping days; needs ≥30)</span> : `${p.behavior.corrBtc.value.toFixed(2)} (${p.behavior.corrBtc.pairs} days)`} basis={p.behavior.corrBtc.value != null ? "measured" : "unknown"} />
+              <Row label="Correlation with ETH" value={p.instrumentId === "crypto:coingecko:ethereum" ? <span className="text-ink-3">not applicable (this is ETH)</span> : p.behavior.corrEth.value == null ? <span className="text-ink-3">UNKNOWN ({p.behavior.corrEth.pairs} overlapping days; needs ≥30)</span> : `${p.behavior.corrEth.value.toFixed(2)} (${p.behavior.corrEth.pairs} days)`} basis={p.behavior.corrEth.value != null ? "measured" : "unknown"} />
               <Row label="History window" value={`${p.behavior.historyDays} daily closes, ${p.behavior.firstDay} → ${p.behavior.lastDay}`} />
             </tbody>
           </table>
