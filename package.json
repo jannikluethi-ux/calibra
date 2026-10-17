@@ -8,7 +8,9 @@
     "start": "next start -p 3456",
     "lint": "next lint",
     "seed": "npx tsx scripts/seed.ts",
-    "reclassify": "npx tsx scripts/reclassify-v2.ts"
+    "reclassify": "npx tsx scripts/reclassify-v2.ts",
+    "test:unit": "tsx --test tests/unit/*.test.ts",
+    "test": "bash tests/test-maintenance.sh && npm run test:unit"
   },
   "dependencies": {
     "@types/better-sqlite3": "^9.6.0",
