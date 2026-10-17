@@ -10,6 +10,7 @@ import {
   getLastRun,
   runNamedJob,
   isHighImpactFired,
+  META_CRYPTO_RETRY,
   type JobRunResult,
 } from "./jobs";
 
@@ -24,6 +25,8 @@ export const INTERVALS = {
   eventsWeekdayMs: 20 * 60 * 1000, // ~20 min weekdays
   eventsWeekendMs: 60 * 60 * 1000, // hourly weekends
   marketsSlowMs: 60 * 60 * 1000, // hourly off-hours
+  cryptoMs: 6 * 60 * 60 * 1000, // crypto intelligence sync every ~6 h (CoinGecko free tier)
+  cryptoRetryMs: 60 * 60 * 1000, // bounded retry after a failed / rate-limited crypto run
   lockStaleMs: 15 * 60 * 1000, // abandon stuck lock after 15 min
 } as const;
 
@@ -213,6 +216,16 @@ export function decideDueJobs(now = new Date()): DueDecision {
     }
   }
 
+  // crypto: every ~6 h; after a failed/rate-limited run, a bounded number of ~1 h retries
+  {
+    const interval = cryptoInterval();
+    if (dueByInterval(getLastRun("crypto"), interval, nowMs)) {
+      due.push("crypto");
+    } else {
+      skipped.push({ job: "crypto", reason: `last ${getLastRun("crypto")} < ${interval / 60000}m ago` });
+    }
+  }
+
   // derive is decided after markets/events actually change in the tick — placeholder skip for status
   skipped.push({
     job: "derive",
@@ -220,6 +233,11 @@ export function decideDueJobs(now = new Date()): DueDecision {
   });
 
   return { due, skipped, zurich: z, inFastSession: fast };
+}
+
+export function cryptoInterval(): number {
+  const retry = Number(getMeta(META_CRYPTO_RETRY) || 0) || 0;
+  return retry > 0 ? INTERVALS.cryptoRetryMs : INTERVALS.cryptoMs;
 }
 
 export function nextDueEstimate(now = new Date()): Record<JobName, string | null> {
@@ -252,6 +270,7 @@ export function nextDueEstimate(now = new Date()): Record<JobName, string | null
   );
 
   out.derive = null; // conditional
+  add("crypto", getLastRun("crypto"), cryptoInterval());
 
   // next maintenance: today 06:00 if still ahead and not run; else tomorrow 06:00
   out["daily-maintenance"] = nextMaintenanceAt(now).toISOString();
@@ -402,6 +421,14 @@ export async function runSchedulerTick(opts?: { force?: boolean }): Promise<Tick
       }
     }
 
+    // crypto runs last (slow, paced external calls) and never triggers derive.
+    // Its errors are recorded in its own meta + source health, not as tick-level noteworthy reasons.
+    if (decision.due.includes("crypto")) {
+      const result = await runNamedJob("crypto");
+      jobResults.push(result);
+      ran.push("crypto");
+    }
+
     const quality = getMeta("dataQuality") || "insufficient";
     if (priorQuality === "live" && quality !== "live") {
       noteworthyReasons.push(`dataQuality degraded: live → ${quality}`);
@@ -475,6 +502,7 @@ export function getSchedulerStatus() {
       events: isWeekday(z) ? "~20 min (weekday)" : "~60 min (weekend)",
       derive: "after markets/events change in a tick",
       "daily-maintenance": `once at Zurich ${String(SESSION.maintenanceHour).padStart(2, "0")}:xx`,
+      crypto: "~6 h (≤2 retries after ~1 h on failure / CoinGecko 429)",
     },
     lastRuns: getAllLastRuns(),
     nextDue: nextDueEstimate(),

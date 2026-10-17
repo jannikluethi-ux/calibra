@@ -92,7 +92,7 @@ export default function SchedulerSettingsPage() {
     }
   }
 
-  const jobs = ["markets-fast", "markets-slow", "events", "derive", "daily-maintenance"];
+  const jobs = ["markets-fast", "markets-slow", "events", "derive", "daily-maintenance", "crypto"];
 
   return (
     <div className="max-w-3xl space-y-3">

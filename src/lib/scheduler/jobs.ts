@@ -23,6 +23,7 @@ export const JOB_NAMES = [
   "events",
   "derive",
   "daily-maintenance",
+  "crypto",
 ] as const;
 
 export type JobName = (typeof JOB_NAMES)[number];
@@ -33,6 +34,7 @@ export const META_LAST: Record<JobName, string> = {
   events: "scheduler.last.events",
   derive: "scheduler.last.derive",
   "daily-maintenance": "scheduler.last.daily-maintenance",
+  crypto: "scheduler.last.crypto",
 };
 
 export const META_LAST_ERROR: Record<JobName, string> = {
@@ -41,7 +43,12 @@ export const META_LAST_ERROR: Record<JobName, string> = {
   events: "scheduler.error.events",
   derive: "scheduler.error.derive",
   "daily-maintenance": "scheduler.error.daily-maintenance",
+  crypto: "scheduler.error.crypto",
 };
+
+/** Bounded retry state for the crypto job (consecutive failed/rate-limited runs). */
+export const META_CRYPTO_RETRY = "scheduler.retry.crypto";
+export const CRYPTO_MAX_RETRIES = 2;
 
 export interface JobRunResult {
   job: JobName;
@@ -168,6 +175,49 @@ export function isHighImpactFired(fa: FiredAlert): boolean {
   return false;
 }
 
+/**
+ * Crypto intelligence sync (every ~6 h): existing source adapters + consensus + research_v1 (archived before
+ * overwrite), then paced CoinGecko free-tier market/identity/history sync and DefiLlama incidents, then
+ * crypto_risk_v2 scoring (append-only history). A 429 stops CoinGecko calls for the run; failures retry
+ * after ~1 h at most CRYPTO_MAX_RETRIES times, then fall back to the normal interval. Never triggers derive.
+ */
+export async function runCryptoJob(): Promise<JobRunResult> {
+  const errors: string[] = [];
+  const detail: Record<string, unknown> = {};
+  const { runCryptoSourceSync } = await import("../sources/sync");
+  const { runCryptoMarketSync } = await import("../crypto/market-sync");
+  const { scoreAllCryptoV2 } = await import("../crypto/risk-store");
+  try {
+    const r = await runCryptoSourceSync();
+    detail.sources = r.adapters.map((a) => ({ id: a.id, ok: a.result?.ok ?? null, skipped: a.skipped ?? null }));
+    detail.researchV1 = r.riskScores;
+    for (const a of r.adapters) if (a.result && !a.result.ok) errors.push(`${a.id}: ${a.result.note.slice(0, 160)}`);
+  } catch (e) {
+    errors.push(`source sync threw: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200));
+  }
+  let rateLimited = false;
+  try {
+    const m = await runCryptoMarketSync();
+    rateLimited = m.coingecko.rateLimited;
+    detail.market = { calls: m.coingecko.calls, rateLimited, skipped: m.coingecko.skipped ?? null, updated: m.marketsUpdated, snapshots: m.snapshots, daily: m.daily, history: m.history };
+    errors.push(...m.coingecko.errors, ...m.daily.errors);
+  } catch (e) {
+    errors.push(`market sync threw: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200));
+  }
+  try {
+    detail.v2 = scoreAllCryptoV2();
+  } catch (e) {
+    errors.push(`v2 scoring threw: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200));
+  }
+  const failed = rateLimited || errors.length > 0;
+  const prev = Number(getMeta(META_CRYPTO_RETRY) || 0) || 0;
+  const next = failed && prev < CRYPTO_MAX_RETRIES ? prev + 1 : 0;
+  setMeta(META_CRYPTO_RETRY, String(next));
+  detail.retryScheduled = next > 0 ? next : null;
+  stamp("crypto", errors);
+  return { job: "crypto", ok: errors.length === 0, errors, detail, changed: false };
+}
+
 export async function runNamedJob(name: JobName): Promise<JobRunResult> {
   switch (name) {
     case "markets-fast":
@@ -180,6 +230,8 @@ export async function runNamedJob(name: JobName): Promise<JobRunResult> {
       return runDerive();
     case "daily-maintenance":
       return runDailyMaintenanceJob();
+    case "crypto":
+      return runCryptoJob();
     default: {
       const _exhaustive: never = name;
       throw new Error(`Unknown job: ${_exhaustive}`);
