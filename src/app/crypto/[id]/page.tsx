@@ -251,7 +251,7 @@ export default function CryptoResearchPage({
 
       <Panel title="Related events (linked news)">
         <p className="text-caption text-ink-3 mb-2">
-          {data.news_count} stored live events matched this instrument by a whole-token name or a unique live symbol. Demo events are not linked.
+          {data.news_count} stored live events name this asset by contract address or CoinGecko id. Tickers and coin names are not used for linking, so most news is not linked. Demo events are not linked.
         </p>
         {data.news.length === 0 ? (
           <p className="text-sm text-ink-2">None.</p>
