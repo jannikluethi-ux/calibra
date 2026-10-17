@@ -314,7 +314,7 @@ export function computeRisk(i: RiskInputs): RiskResult {
   const volHigh = vol?.score != null && vol.score >= STRUCTURAL_THRESHOLD;
 
   let band: Band = score == null || coverage < MIN_COVERAGE ? "insufficient_data" : bandFor(score);
-  let riskType: RiskType =
+  const riskType: RiskType =
     band === "insufficient_data" ? "insufficient_data" : structural.length ? "structural" : volHigh ? "volatility_only" : "none_flagged";
 
   // Volatility alone can never produce a high/extreme band.
