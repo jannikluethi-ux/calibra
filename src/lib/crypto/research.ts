@@ -224,7 +224,7 @@ export function getResearch(rawId: string): ResearchPayload {
 
   const related = relatedInstruments(instrument, 8);
   const newsCount = (
-    db.prepare(`SELECT COUNT(*) AS c FROM instrument_event_links WHERE instrument_id = ?`).get(instrument.id) as {
+    db.prepare(`SELECT COUNT(*) AS c FROM instrument_event_links WHERE instrument_id = ? AND match_kind IN ('contract_address','coingecko_id')`).get(instrument.id) as {
       c: number;
     }
   ).c;
@@ -233,7 +233,7 @@ export function getResearch(rawId: string): ResearchPayload {
       `SELECT l.event_id, l.match_kind, l.source_id, e.published_at, e.data
        FROM instrument_event_links l
        JOIN events e ON e.id = l.event_id
-       WHERE l.instrument_id = ?
+       WHERE l.instrument_id = ? AND l.match_kind IN ('contract_address','coingecko_id')
        ORDER BY e.published_at DESC
        LIMIT 8`
     )

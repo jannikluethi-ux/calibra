@@ -50,6 +50,8 @@ const SOURCE_ID_BY_NAME: Record<string, string> = {
   "Bank of Canada Press Releases": "rss_boc",
   "CFTC Press Releases": "rss_cftc",
   "Financial Stability Board": "rss_fsb",
+  "CNBC Top News": "rss_cnbc",
+  "Reuters Business": "rss_reuters",
 };
 
 export function sourceIdOf(e: Pick<FinancialEvent, "provenance" | "sourceName">): string | null {
@@ -142,7 +144,7 @@ export function assessEvent(e: FinancialEvent, ctx: AssessmentContext): EventAss
 
   const verified: string[] = [];
   const pubAt = e.provenance?.sourcePublishedAt ?? (e.provenance ? null : e.publishedAt);
-  verified.push(`${e.sourceName} (tier ${e.sourceTier}) published an item titled "${e.title.slice(0, 200)}"${pubAt ? ` at ${pubAt}` : " (no publish time in the source)"}.`);
+  verified.push(`${e.sourceName} (tier ${e.sourceTier}) published an item titled "${e.title.slice(0, 200)}"${pubAt ? ` at ${pubAt} (UTC)` : " (no publish time in the source)"}.`);
   if (e.citationUrl) verified.push(`Source link recorded: ${e.citationUrl}`);
   if (primary) verified.push("The item comes from the issuing institution's own feed (primary source), so the statement itself is attributable to that institution.");
   if (distinct.length >= 2) verified.push(`The same story was reported by ${distinct.length} distinct sources: ${distinct.join(", ")}.`);

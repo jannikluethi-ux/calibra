@@ -77,8 +77,8 @@ export function computeCoverage(): CoveragePayload {
   const reported = one(
     `SELECT COUNT(*) AS c FROM source_observations WHERE field = 'description' AND claim_type = 'reported_claim'`
   );
-  const newsLinks = one(`SELECT COUNT(*) AS c FROM instrument_event_links`);
-  const newsInst = one(`SELECT COUNT(DISTINCT instrument_id) AS c FROM instrument_event_links`);
+  const newsLinks = one(`SELECT COUNT(*) AS c FROM instrument_event_links WHERE match_kind IN ('contract_address','coingecko_id')`);
+  const newsInst = one(`SELECT COUNT(DISTINCT instrument_id) AS c FROM instrument_event_links WHERE match_kind IN ('contract_address','coingecko_id')`);
   const risk = one(`SELECT COUNT(*) AS c FROM crypto_risk_assessments`);
   const multi = one(
     `SELECT COUNT(*) AS c FROM canonical_fields WHERE field = 'price' AND n_sources >= 2`

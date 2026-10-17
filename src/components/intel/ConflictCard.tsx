@@ -25,7 +25,7 @@ export function ConflictCard({ c }: { c: StoredConflict }) {
         <li>{c.detail.sourceComparison}</li>
         <li>{c.detail.timeComparison}</li>
         <li>{c.detail.verificationNote}</li>
-        <li>Effect: scenarios for both events lower confidence and move weights toward equal (rules W4/C2). No side is chosen.</li>
+        <li>Effect: any v2 scenario set for these events gets lower confidence and weights moved toward equal (rules W4/C2); pre-v2 rows are not changed. No side is chosen.</li>
       </ul>
     </div>
   );
