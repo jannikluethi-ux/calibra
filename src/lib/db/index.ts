@@ -121,6 +121,28 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_events_published ON events(published_at DESC);
     CREATE INDEX IF NOT EXISTS idx_forecasts_asset ON forecasts(asset_symbol);
     CREATE INDEX IF NOT EXISTS idx_market_history_symbol_ts ON market_history(symbol, ts);
+
+    -- event_cluster_v1: links same-story events to a canonical event. Originals are never deleted.
+    CREATE TABLE IF NOT EXISTS event_clusters (
+      event_id TEXT PRIMARY KEY,
+      canonical_event_id TEXT NOT NULL,
+      method TEXT NOT NULL,
+      score REAL,
+      reasons_json TEXT,
+      linked_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_event_clusters_canonical ON event_clusters(canonical_event_id);
+    -- Append-only audit trail of every link / relink / unlink decision.
+    CREATE TABLE IF NOT EXISTS event_cluster_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id TEXT NOT NULL,
+      canonical_event_id TEXT,
+      action TEXT NOT NULL,
+      method TEXT NOT NULL,
+      score REAL,
+      reasons_json TEXT,
+      at TEXT NOT NULL
+    );
   `);
 
   // Additive migrations for DBs created before resolution columns existed

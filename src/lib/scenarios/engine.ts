@@ -288,7 +288,8 @@ function findScenarioByEventId(eventId: string): Scenario | null {
  *  already exists for that event, so repeated derive/refresh ticks do not
  *  append unbounded duplicate rows. */
 export function rebuildScenariosFromEvents(limit = 12): Scenario[] {
-  const events = getEvents(limit);
+  // Same-story duplicates (event_cluster_v1 non-canonical members) do not get their own scenario slot.
+  const events = getEvents(limit, { canonicalOnly: true });
   getDb();
   const scenarios: Scenario[] = [];
   const now = new Date().toISOString();
