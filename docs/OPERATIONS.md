@@ -118,3 +118,37 @@ Uses <dir>/uptime-state.json, .heartbeat-dedupe.json, notify-outbox-test.jsonl, 
 Threshold: keep HEARTBEAT_STALE_MIN 25 while the routine is the only caller; 20 is justified once the loop runs
 (15 min cadence + 5 min slack vs loop lateness < 2 s).
 Tests: `bash tests/test-monitor-loop.sh`.
+
+## Batch 1 additions (17 Oct 2026)
+
+### Boot race guard
+* `scripts/ensure-prod.sh` waits up to `CALIBRA_RESTORE_WAIT_S` (default 300 s) while the platform restore status file
+  (`CALIBRA_RESTORE_STATUS`, default `/tmp/sand-copy-in-status.json`; `none` disables) exists without `"phase":"done"`;
+  if still unfinished it exits 4 without starting. If `scripts/lib-maintenance.sh` is missing or fails to load it exits 1
+  (fail safe, logged to `prod.log`). `boot-hook.sh` returns early in both cases.
+* Paths derive from the script location (`CALIBRA_HOME` overrides).
+
+### Verified database backup
+```
+python3 scripts/backup-db.py --label before-change   # -> ../calibra-backups/gfi-<UTC>-<label>.db(.gz) + .json manifest
+```
+Exit 0 only when integrity_check = ok and row counts are consistent. Always take one before schema/ingestion changes or deploys.
+
+### Deploy (used for Batch 1)
+```
+python3 scripts/backup-db.py --label pre-deploy
+scripts/maintenance.sh on --reason "deploy" --ttl 20
+scripts/ensure-prod.sh --build --override-maintenance
+scripts/maintenance.sh off
+```
+Rollback: `git checkout <previous commit>` and repeat the build, or stop prod and restore a saved `.next` copy, then `--start`.
+
+### Data quality and source health
+* `GET /api/data-quality`: overall label (live / degraded / stale / demo / insufficient), reasons, failing sources, coverage,
+  stale/invalid values, affected outputs, skipped calculations, corroboration with official rates, cluster metrics.
+* `GET /api/sources/health`: per-source registry. Tables: `source_health`, `source_fetch_log`, `data_quality_flags`,
+  `event_clusters`, `event_cluster_history` (all additive).
+* Event clustering backfill (idempotent, additive): `node_modules/.bin/tsx scripts/cluster-events-backfill.ts`.
+
+### Tests
+`npm run test:unit` (node:test via tsx, temp databases only) and `npm test` (maintenance bash tests + unit tests).
