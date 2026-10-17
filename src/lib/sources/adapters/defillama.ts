@@ -1,6 +1,7 @@
 import { getDb } from "../../db";
 import { fetchJson } from "../http";
 import { appendObservation } from "../observations";
+import { ensureCryptoIntelTables } from "../../crypto/intel-schema";
 
 const URL = "https://api.llama.fi/protocols";
 
@@ -28,6 +29,21 @@ export async function runDefillama(): Promise<{ httpStatus: number | null; ok: b
   let observations = 0;
   let withGecko = 0;
   let matched = 0;
+  // Protocol id -> gecko_id map (used to attach DefiLlama hack records to instruments by CoinGecko id, never by ticker).
+  ensureCryptoIntelTables(db);
+  const mapStmt = db.prepare(
+    `INSERT INTO crypto_protocol_map (defillama_id, protocol_name, gecko_id, instrument_id, retrieved_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(defillama_id) DO UPDATE SET protocol_name = excluded.protocol_name, gecko_id = excluded.gecko_id,
+       instrument_id = excluded.instrument_id, retrieved_at = excluded.retrieved_at`
+  );
+  db.transaction(() => {
+    for (const item of res.json as Record<string, unknown>[]) {
+      const pid = item.id == null ? "" : String(item.id);
+      if (!pid) continue;
+      const gecko = typeof item.gecko_id === "string" && item.gecko_id.trim() ? item.gecko_id.trim() : null;
+      mapStmt.run(pid, typeof item.name === "string" ? item.name : null, gecko, gecko ? byGecko.get(gecko) ?? null : null, retrievedAt);
+    }
+  })();
   const insertMany = db.transaction(() => {
     for (const item of res.json as Record<string, unknown>[]) {
       const gecko = typeof item.gecko_id === "string" ? item.gecko_id.trim() : "";

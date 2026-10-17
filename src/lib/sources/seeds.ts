@@ -102,6 +102,15 @@ export const SOURCE_SEEDS: SourceSeed[] = [
     enabled: 1,
   },
   {
+    id: "defillama_hacks",
+    name: "DefiLlama hacks database",
+    category: "security",
+    source_class: "secondary_aggregator",
+    legal_notes:
+      "api.llama.fi/hacks, no key. Reported incidents (date, loss, classification). Attached to an instrument only via DefiLlama protocol id -> gecko_id; never by ticker. Absence of a record is not evidence of safety.",
+    enabled: 1,
+  },
+  {
     id: "ust_yield_curve",
     name: "U.S. Treasury daily par yield curve",
     category: "official_rates",

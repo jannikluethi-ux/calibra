@@ -34,10 +34,11 @@ export const TRACKED_SOURCES: TrackedSource[] = [
   { id: "yahoo_markets", name: "Yahoo Finance chart (21-symbol market universe)", kind: "market_data", maxAgeMs: 80 * H, critical: true, downstream: ["market snapshots", "movers", "forecast origin prices", "forecast resolution", "risk gauges", "alerts"] },
   { id: "ust_yield_curve", name: "U.S. Treasury daily par yield curve (CSV)", kind: "official_rates", maxAgeMs: 5 * 24 * H, critical: false, downstream: ["rates corroboration (data-quality summary)"] },
   { id: "bundesbank_yields", name: "Deutsche Bundesbank 10Y Bund yield (SDMX CSV)", kind: "official_rates", maxAgeMs: 5 * 24 * H, critical: false, downstream: ["rates corroboration (data-quality summary)"] },
-  { id: "coingecko", name: "CoinGecko simple/price + global", kind: "crypto", maxAgeMs: 24 * H, critical: false, downstream: ["crypto canonical prices", "crypto risk scores", "crypto coverage"] },
+  { id: "coingecko", name: "CoinGecko (markets top 1,000, simple/price, global, categories, contracts, daily charts)", kind: "crypto", maxAgeMs: 24 * H, critical: false, downstream: ["crypto asset profiles", "crypto canonical prices", "crypto risk scores (v2)", "crypto high-risk list", "crypto coverage"] },
   { id: "coingecko_project", name: "CoinGecko coin detail", kind: "crypto", maxAgeMs: 7 * 24 * H, critical: false, downstream: ["crypto research pages"] },
   { id: "coinbase", name: "Coinbase Exchange ticker", kind: "crypto", maxAgeMs: 24 * H, critical: false, downstream: ["crypto canonical prices", "crypto risk scores"] },
-  { id: "defillama", name: "DefiLlama protocols", kind: "crypto", maxAgeMs: 24 * H, critical: false, downstream: ["crypto TVL observations", "crypto risk scores"] },
+  { id: "defillama", name: "DefiLlama protocols", kind: "crypto", maxAgeMs: 24 * H, critical: false, downstream: ["crypto TVL observations", "protocol id -> CoinGecko id map"] },
+  { id: "defillama_hacks", name: "DefiLlama hacks database", kind: "crypto", maxAgeMs: 3 * 24 * H, critical: false, downstream: ["crypto security factor (risk v2)", "crypto detail pages"] },
 ];
 
 export function trackedSource(id: string): TrackedSource | undefined {

@@ -151,7 +151,7 @@ interface CgListCoin {
   name: string;
 }
 
-interface CgMarketCoin {
+export interface CgMarketCoin {
   id: string;
   symbol: string;
   name: string;
@@ -193,7 +193,7 @@ function listRow(c: CgListCoin, now: string): InstrumentUpsert {
   };
 }
 
-function marketRow(c: CgMarketCoin): InstrumentUpsert {
+export function marketRow(c: CgMarketCoin): InstrumentUpsert {
   const price = num(c.current_price);
   return {
     id: cgId(c.id),
