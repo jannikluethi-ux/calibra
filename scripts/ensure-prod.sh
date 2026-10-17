@@ -13,7 +13,8 @@
 # exponential back-off (5s doubling to 300s; reset after 10 min stable uptime) and stops with a
 # CRASHLOOP marker after CRASH_MAX crashes within CRASH_WINDOW seconds. If the port is already
 # served by a healthy instance (EADDRINUSE), the loop exits instead of spinning.
-# Logs: $STATE_DIR/prod.log. Test overrides (never needed in prod): CALIBRA_PORT, CALIBRA_STATE_DIR,
+# Exit codes: 1 lib-maintenance missing (fail safe) / build failed, 3 maintenance guard, 4 restore still in progress.
+# Logs: $STATE_DIR/prod.log. Test overrides (never needed in prod): CALIBRA_PORT, CALIBRA_STATE_DIR, CALIBRA_RESTORE_STATUS,
 # CALIBRA_SUPERVISE_CMD, CALIBRA_BACKOFF_MIN/MAX, CALIBRA_STABLE_SECS, CALIBRA_CRASH_MAX/WINDOW.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -30,7 +31,30 @@ CRASH_MAX="${CALIBRA_CRASH_MAX:-5}"
 CRASH_WINDOW="${CALIBRA_CRASH_WINDOW:-900}"
 HEALTH_URL="http://127.0.0.1:${PORT}/api/scheduler/status"
 CALIBRA_HOME="$(pwd)"; export CALIBRA_STATE_DIR="$STATE_DIR"
-. scripts/lib-maintenance.sh
+# Boot-race guard (17 Oct 2026 incident): after a workspace restore the platform may still be copying files
+# when the first shell runs the boot hook. If a restore-status file exists and is not finished, wait (bounded)
+# instead of starting with half-restored scripts. CALIBRA_RESTORE_STATUS=none disables the check.
+RESTORE_STATUS="${CALIBRA_RESTORE_STATUS:-/tmp/sand-copy-in-status.json}"
+RESTORE_WAIT="${CALIBRA_RESTORE_WAIT_S:-300}"
+restore_in_progress() {
+  [ "$RESTORE_STATUS" != none ] && [ -f "$RESTORE_STATUS" ] || return 1
+  grep -Eq '"phase"[[:space:]]*:[[:space:]]*"done"' "$RESTORE_STATUS" && return 1
+  return 0
+}
+case "${1:-}" in --stop|--loop) ;; *)
+  waited=0
+  while restore_in_progress && [ "$waited" -lt "$RESTORE_WAIT" ]; do sleep 2; waited=$((waited + 2)); done
+  if restore_in_progress; then
+    echo "[$(date -Is)] workspace restore still in progress after ${RESTORE_WAIT}s ($RESTORE_STATUS); not starting" >>"$STATE_DIR/prod.log"
+    echo "workspace restore still in progress; not starting (retry later)"; exit 4
+  fi ;;
+esac
+# Fail safe: without the maintenance-guard library we cannot honour the guard, so refuse to run at all.
+if [ ! -r scripts/lib-maintenance.sh ] || ! . scripts/lib-maintenance.sh; then
+  echo "[$(date -Is)] scripts/lib-maintenance.sh missing or failed to load; refusing to start (fail safe)" >>"$STATE_DIR/prod.log"
+  echo "scripts/lib-maintenance.sh missing or failed to load; refusing to start (fail safe)" >&2
+  exit 1
+fi
 CALLER="${CALIBRA_CALLER:-supervisor-manual}"
 OVERRIDE="${CALIBRA_OVERRIDE_MAINTENANCE:-0}"
 ARGS=()

@@ -5,7 +5,8 @@
 # restart-events log and removed, so a forgotten/interrupted session can never disable prod forever.
 # Restart events: $CALIBRA_STATE_DIR/restart-events.log, one line per event:
 #   ts=<iso> caller=<boot-hook|supervisor-manual|supervisor-loop|maintenance|...> action=<...> pid=<pid> detail="<...>"
-calibra_state_dir() { echo "${CALIBRA_STATE_DIR:-${CALIBRA_HOME:-/workspace/global-financial-intelligence}/tmp}"; }
+__calibra_lib_home="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." 2>/dev/null && pwd)"
+calibra_state_dir() { echo "${CALIBRA_STATE_DIR:-${CALIBRA_HOME:-${__calibra_lib_home:-/workspace/global-financial-intelligence}}/tmp}"; }
 calibra_guard_file() { echo "$(calibra_state_dir)/MAINTENANCE"; }
 calibra_now() { echo "${CALIBRA_NOW_EPOCH:-$(date +%s)}"; }
 calibra_event() { # caller action detail

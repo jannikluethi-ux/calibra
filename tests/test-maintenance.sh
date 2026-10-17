@@ -18,7 +18,7 @@ mkfake() {
 echo "called caller=${CALIBRA_CALLER:-} args=$*" >>"$(dirname "$0")/../tmp/mock-start.log"
 M
   chmod +x "$T/scripts/ensure-prod.sh"
-  export CALIBRA_HOME="$T" CALIBRA_STATE_DIR="$T/tmp" CALIBRA_PORT="$(free_port)"
+  export CALIBRA_HOME="$T" CALIBRA_STATE_DIR="$T/tmp" CALIBRA_PORT="$(free_port)" CALIBRA_RESTORE_STATUS=none
 }
 run_hook() { ( . "$REPO/scripts/boot-hook.sh" ) 2>"$T/hook.err"; sleep 0.5; }
 
@@ -65,7 +65,7 @@ check "default ttl 60" grep -q "^ttl_min=60" "$T/tmp/MAINTENANCE"
 
 echo "== 6. real ensure-prod.sh (mocked server cmd, spare port, temp state dir)"
 S="$(mktemp -d)"; P="$(free_port)"
-export CALIBRA_HOME="$REPO" CALIBRA_STATE_DIR="$S" CALIBRA_PORT="$P" CALIBRA_SUPERVISE_CMD="echo mockserver >>$S/server-starts; sleep 60"
+export CALIBRA_RESTORE_STATUS=none CALIBRA_HOME="$REPO" CALIBRA_STATE_DIR="$S" CALIBRA_PORT="$P" CALIBRA_SUPERVISE_CMD="echo mockserver >>$S/server-starts; sleep 60"
 unset CALIBRA_CALLER
 "$REPO/scripts/maintenance.sh" on --reason "ensure test" --ttl 10 >/dev/null 2>&1   # writes into $S via CALIBRA_STATE_DIR
 check "guard written to temp state dir" test -f "$S/MAINTENANCE"
@@ -86,5 +86,24 @@ CALIBRA_CALLER=boot-hook "$REPO/scripts/ensure-prod.sh" >/dev/null 2>&1; sleep 1
 check "inactive guard: start allowed, caller=boot-hook recorded" grep -q "caller=boot-hook action=supervisor-start" "$S/restart-events.log"
 "$REPO/scripts/ensure-prod.sh" --stop >/dev/null 2>&1
 check "real prod state dir untouched (no MAINTENANCE in repo tmp)" test ! -f "$REPO/tmp/MAINTENANCE"
+echo "== 7. boot-race guard: unfinished workspace restore / missing lib-maintenance.sh (fail safe)"
+mkfake; RS="$T/copy-in-status.json"; echo '{"phase":"copying","restored":100,"total":55738}' >"$RS"
+CALIBRA_RESTORE_STATUS="$RS" run_hook
+check "restore in progress: boot-hook does NOT start prod" test ! -f "$T/tmp/mock-start.log"
+echo '{"phase":"done","restored":55738,"total":55738,"outcome":"hydrated"}' >"$RS"
+CALIBRA_RESTORE_STATUS="$RS" run_hook
+check "restore done: boot-hook starts prod" grep -q "called caller=boot-hook" "$T/tmp/mock-start.log"
+mkfake; rm -f "$T/scripts/lib-maintenance.sh"; run_hook
+check "lib-maintenance.sh missing: boot-hook does NOT start prod" test ! -f "$T/tmp/mock-start.log"
+S7="$(mktemp -d)"; echo '{"phase":"copying"}' >"$S7/status.json"
+out="$(CALIBRA_RESTORE_STATUS="$S7/status.json" CALIBRA_RESTORE_WAIT_S=2 CALIBRA_STATE_DIR="$S7" CALIBRA_PORT="$(free_port)" CALIBRA_SUPERVISE_CMD="echo x >>$S7/server-starts; sleep 30" "$REPO/scripts/ensure-prod.sh" 2>&1)"; rc=$?
+check "ensure-prod: restore in progress -> rc 4" test "$rc" -eq 4
+sleep 0.5; check "ensure-prod: no server start during restore" test ! -f "$S7/server-starts"
+check "ensure-prod: restore wait logged" grep -q "restore still in progress" "$S7/prod.log"
+X="$(mktemp -d)"; mkdir -p "$X/scripts" "$X/tmp"; cp "$REPO/scripts/ensure-prod.sh" "$X/scripts/"
+out="$(CALIBRA_RESTORE_STATUS=none CALIBRA_STATE_DIR="$X/tmp" CALIBRA_PORT="$(free_port)" CALIBRA_SUPERVISE_CMD="echo x >>$X/server-starts; sleep 30" "$X/scripts/ensure-prod.sh" 2>&1)"; rc=$?
+check "ensure-prod: lib-maintenance.sh missing -> rc 1 (fail safe)" test "$rc" -eq 1
+sleep 0.5; check "ensure-prod: no server start without guard library" test ! -f "$X/server-starts"
+check "ensure-prod: fail-safe reason logged" grep -q "refusing to start (fail safe)" "$X/tmp/prod.log"
 echo "--- restart-events.log sample (temp):"; cat "$S/restart-events.log"
 echo "RESULT: $PASS passed, $FAIL failed"; [ "$FAIL" -eq 0 ]
