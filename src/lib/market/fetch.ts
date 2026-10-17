@@ -2,6 +2,9 @@ import { MARKET_UNIVERSE } from "./universe";
 import type { MarketSnapshot, Provenance } from "../types";
 import { getDb, upsertJson, setMeta, getJsonAll } from "../db";
 import { persistSnapshotsToHistory } from "./history";
+import { recordAttempt } from "../sources/health";
+import { classifyFailure, isValidPrice, statusFromError, withRetry, withTimeout, type AttemptOutcome } from "../sources/health-core";
+import { computeDataQualityLabel } from "../quality/summary";
 
 function pctChange(current: number, prior: number): number | null {
   if (!prior || !Number.isFinite(prior) || !Number.isFinite(current)) return null;
@@ -25,37 +28,56 @@ function sleep(ms: number) {
 }
 
 interface ChartResult {
-  meta?: { regularMarketPrice?: number; currency?: string; symbol?: string };
+  meta?: { regularMarketPrice?: number; regularMarketTime?: number; currency?: string; symbol?: string };
   timestamp?: number[];
   indicators?: { quote?: { close?: (number | null)[] }[] };
 }
 
-async function fetchChart(yahooSymbol: string): Promise<{ price: number | null; closes: number[] }> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=3mo&interval=1d`;
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; GFIAgent/0.1; research)",
-      Accept: "application/json",
-    },
-    next: { revalidate: 0 },
-  });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
+export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
+
+class HttpError extends Error {
+  constructor(public status: number, msg: string) {
+    super(msg);
   }
-  const text = await res.text();
-  if (text.startsWith("Too Many Requests")) throw new Error("Too Many Requests");
-  const json = JSON.parse(text) as { chart?: { result?: ChartResult[]; error?: unknown } };
-  const result = json.chart?.result?.[0];
-  if (!result) throw new Error("Empty chart result");
-  const closesRaw = result.indicators?.quote?.[0]?.close ?? [];
-  const closes = closesRaw.filter((c): c is number => c != null && Number.isFinite(c));
-  const price =
-    result.meta?.regularMarketPrice ??
-    (closes.length ? closes[closes.length - 1] : null);
-  return { price: price ?? null, closes };
 }
 
-async function fetchOne(item: (typeof MARKET_UNIVERSE)[0]): Promise<MarketSnapshot> {
+async function fetchChart(
+  yahooSymbol: string,
+  fetchImpl: FetchLike
+): Promise<{ price: number | null; closes: number[]; marketTime: string | null }> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=3mo&interval=1d`;
+  const res = await withTimeout(
+    fetchImpl(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; GFIAgent/0.1; research)", Accept: "application/json" },
+      cache: "no-store",
+    }),
+    20000,
+    yahooSymbol
+  );
+  const text = await res.text();
+  if (res.status === 429 || text.startsWith("Too Many Requests")) throw new HttpError(429, "HTTP 429 Too Many Requests");
+  if (!res.ok) throw new HttpError(res.status, `HTTP ${res.status}`);
+  let json: { chart?: { result?: ChartResult[]; error?: unknown } };
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new HttpError(res.status, "invalid JSON");
+  }
+  const result = json.chart?.result?.[0];
+  if (!result) throw new HttpError(res.status, "invalid data: empty chart result");
+  const closesRaw = result.indicators?.quote?.[0]?.close ?? [];
+  const closes = closesRaw.filter((c): c is number => isValidPrice(c));
+  const price = result.meta?.regularMarketPrice ?? (closes.length ? closes[closes.length - 1] : null);
+  const mt = result.meta?.regularMarketTime;
+  return { price: price ?? null, closes, marketTime: mt && mt > 0 ? new Date(mt * 1000).toISOString() : null };
+}
+
+interface SymbolResult {
+  snap: MarketSnapshot;
+  outcome: AttemptOutcome;
+}
+
+async function fetchOne(item: (typeof MARKET_UNIVERSE)[0], fetchImpl: FetchLike, retryBaseMs: number): Promise<SymbolResult> {
   const now = new Date().toISOString();
   const provenance: Provenance = {
     source: "Yahoo Finance chart API",
@@ -64,164 +86,138 @@ async function fetchOne(item: (typeof MARKET_UNIVERSE)[0]): Promise<MarketSnapsh
     fetchedAt: now,
     quality: "live",
   };
-
-  try {
-    const { price, closes } = await fetchChart(item.yahooSymbol);
-    if (price == null && closes.length === 0) {
-      return {
-        symbol: item.symbol,
-        name: item.name,
-        category: item.category,
-        price: null,
-        change1d: null,
-        change1w: null,
-        change1m: null,
-        volatilityEst: null,
-        isProxy: item.isProxy,
-        proxyNote: item.proxyNote,
-        provenance: { ...provenance, quality: "insufficient", note: "No bars returned" },
-      };
-    }
-    const px = price ?? closes[closes.length - 1];
-    const d1 = closes.length >= 2 ? closes[closes.length - 2] : null;
-    const w1 = closes.length >= 6 ? closes[closes.length - 6] : null;
-    const m1 = closes.length >= 22 ? closes[closes.length - 22] : closes[0] ?? null;
-
+  const base = {
+    symbol: item.symbol,
+    name: item.name,
+    category: item.category,
+    isProxy: item.isProxy,
+    proxyNote: item.proxyNote,
+  };
+  const t0 = Date.now();
+  const r = await withRetry<{ price: number | null; closes: number[]; marketTime: string | null }>(
+    async () => {
+      try {
+        const v = await fetchChart(item.yahooSymbol, fetchImpl);
+        return { outcome: { ok: true, errorClass: "ok" }, value: v };
+      } catch (e) {
+        const status = e instanceof HttpError ? e.status : statusFromError(e);
+        const msg = e instanceof Error ? e.message : String(e);
+        const cls = /invalid (json|data)/i.test(msg) ? "invalid_data" : classifyFailure({ status, error: msg });
+        return { outcome: { ok: false, errorClass: cls, httpStatus: status, error: msg.slice(0, 200) } };
+      }
+    },
+    { retries: 1, baseDelayMs: retryBaseMs }
+  );
+  const latencyMs = Date.now() - t0;
+  if (!r.outcome.ok || !r.value) {
     return {
-      symbol: item.symbol,
-      name: item.name,
-      category: item.category,
+      snap: { ...base, price: null, change1d: null, change1w: null, change1m: null, volatilityEst: null, provenance: { ...provenance, quality: "insufficient", errorClass: r.outcome.errorClass, note: `Fetch failed (${r.outcome.errorClass}): ${(r.outcome.error ?? "").slice(0, 160)}` } },
+      outcome: { ...r.outcome, latencyMs, items: 0 },
+    };
+  }
+  const { price, closes, marketTime } = r.value;
+  const px = isValidPrice(price) ? price : price == null && closes.length ? closes[closes.length - 1] : null;
+  if (!isValidPrice(px)) {
+    // Response arrived but the quote is unusable (e.g. BUND.DE returns regularMarketPrice 0): invalid, not live.
+    return {
+      snap: { ...base, price: null, change1d: null, change1w: null, change1m: null, volatilityEst: null, provenance: { ...provenance, quality: "insufficient", errorClass: "invalid_data", observedAt: marketTime, note: `Invalid quote from source (price=${String(price)}); treated as missing` } },
+      outcome: { ok: false, errorClass: "invalid_data", httpStatus: 200, error: `invalid price ${String(price)}`, latencyMs, items: 0 },
+    };
+  }
+  const d1 = closes.length >= 2 ? closes[closes.length - 2] : null;
+  const w1 = closes.length >= 6 ? closes[closes.length - 6] : null;
+  const m1 = closes.length >= 22 ? closes[closes.length - 22] : closes[0] ?? null;
+  return {
+    snap: {
+      ...base,
       price: px,
       change1d: d1 != null ? pctChange(px, d1) : null,
       change1w: w1 != null ? pctChange(px, w1) : null,
       change1m: m1 != null ? pctChange(px, m1) : null,
       volatilityEst: estimateVol(closes.slice(-22)),
-      isProxy: item.isProxy,
-      proxyNote: item.proxyNote,
-      provenance,
-    };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return {
-      symbol: item.symbol,
-      name: item.name,
-      category: item.category,
-      price: null,
-      change1d: null,
-      change1w: null,
-      change1m: null,
-      volatilityEst: null,
-      isProxy: item.isProxy,
-      proxyNote: item.proxyNote,
-      provenance: {
-        ...provenance,
-        quality: "insufficient",
-        note: `Fetch failed: ${msg.slice(0, 160)}`,
-      },
-    };
-  }
+      provenance: { ...provenance, observedAt: marketTime },
+    },
+    outcome: { ok: true, errorClass: "ok", httpStatus: 200, latencyMs, items: 1, newestObservationAt: marketTime ?? now },
+  };
 }
 
-/** Labeled illustrative snapshots — ONLY used when live Yahoo fails entirely */
-const DEMO_MARKETS: Partial<Record<string, { price: number; change1d: number; change1w: number; change1m: number; vol: number }>> = {
-  SPX: { price: 5620, change1d: 0.35, change1w: 1.2, change1m: 2.8, vol: 14 },
-  NDX: { price: 17800, change1d: 0.5, change1w: 1.5, change1m: 3.1, vol: 18 },
-  SX5E: { price: 4850, change1d: -0.2, change1w: 0.4, change1m: 1.1, vol: 15 },
-  UKX: { price: 8250, change1d: 0.1, change1w: 0.6, change1m: 1.4, vol: 12 },
-  DAX: { price: 18600, change1d: -0.15, change1w: 0.8, change1m: 2.0, vol: 14 },
-  NKY: { price: 38500, change1d: 0.4, change1w: -0.5, change1m: 1.0, vol: 16 },
-  HSI: { price: 17800, change1d: -0.6, change1w: -1.2, change1m: -2.5, vol: 22 },
-  MSCI_WORLD: { price: 115, change1d: 0.25, change1w: 0.9, change1m: 2.2, vol: 13 },
-  BTC: { price: 84000, change1d: 1.2, change1w: -2.5, change1m: 5.0, vol: 45 },
-  ETH: { price: 3200, change1d: 1.5, change1w: -3.0, change1m: 4.0, vol: 55 },
-  GOLD: { price: 2650, change1d: 0.2, change1w: 1.1, change1m: 3.5, vol: 14 },
-  SILVER: { price: 31, change1d: 0.4, change1w: 2.0, change1m: 5.0, vol: 25 },
-  OIL: { price: 72, change1d: -0.8, change1w: 2.5, change1m: -1.0, vol: 28 },
-  NATGAS: { price: 2.8, change1d: 1.5, change1w: -4.0, change1m: -8.0, vol: 55 },
-  US2Y: { price: 4.1, change1d: 0.02, change1w: 0.05, change1m: -0.1, vol: 8 },
-  US10Y: { price: 4.25, change1d: 0.03, change1w: 0.08, change1m: 0.12, vol: 10 },
-  DE10Y: { price: 118, change1d: -0.1, change1w: 0.3, change1m: 0.8, vol: 8 },
-  EURUSD: { price: 1.085, change1d: -0.15, change1w: 0.4, change1m: -0.8, vol: 8 },
-  USDJPY: { price: 149.5, change1d: 0.2, change1w: -0.6, change1m: 1.5, vol: 10 },
-  DXY: { price: 104.2, change1d: 0.1, change1w: -0.3, change1m: 0.5, vol: 7 },
-  VIX: { price: 16.5, change1d: -2.0, change1w: 5.0, change1m: -8.0, vol: 80 },
-};
-
-function demoSnapshot(item: (typeof MARKET_UNIVERSE)[0]): MarketSnapshot {
-  const d = DEMO_MARKETS[item.symbol];
-  const now = new Date().toISOString();
+/**
+ * When a symbol has no valid live quote, show the last VALID non-demo snapshot unchanged and labeled
+ * as carried forward (quality "cached"), or missing (price null) if there is none. Never invents a value.
+ */
+function carryForward(failed: MarketSnapshot, previous: MarketSnapshot | undefined): MarketSnapshot {
+  const prevValid =
+    previous && isValidPrice(previous.price) && previous.provenance.quality !== "demo" && previous.provenance.quality !== "insufficient";
+  if (!prevValid) return failed;
+  const lastFetched = previous.provenance.carriedForward ? previous.provenance.fetchedAt : previous.provenance.fetchedAt;
   return {
-    symbol: item.symbol,
-    name: item.name,
-    category: item.category,
-    price: d?.price ?? null,
-    change1d: d?.change1d ?? null,
-    change1w: d?.change1w ?? null,
-    change1m: d?.change1m ?? null,
-    volatilityEst: d?.vol ?? null,
-    isProxy: item.isProxy,
-    proxyNote: item.proxyNote,
+    ...previous,
     provenance: {
-      source: "Demo / illustrative market snapshot",
-      sourceTier: 4,
-      fetchedAt: now,
-      quality: "demo",
-      note: "ILLUSTRATIVE SAMPLE — live Yahoo fetch failed or rate-limited. Not a live quote.",
+      ...previous.provenance,
+      quality: "cached",
+      carriedForward: true,
+      errorClass: failed.provenance.errorClass,
+      fetchedAt: lastFetched,
+      note: `Last valid quote from ${lastFetched} shown; latest fetch ${failed.provenance.fetchedAt} failed (${failed.provenance.errorClass ?? "unknown"}). Not refreshed.`,
     },
   };
 }
 
-export async function refreshMarketData(): Promise<MarketSnapshot[]> {
-  const results: MarketSnapshot[] = [];
+export interface MarketRefreshOptions {
+  fetchImpl?: FetchLike;
+  paceMs?: number;
+  retryBaseMs?: number;
+}
+
+export async function refreshMarketData(opts: MarketRefreshOptions = {}): Promise<MarketSnapshot[]> {
+  const fetchImpl = opts.fetchImpl ?? ((u, i) => fetch(u, i));
+  const paceMs = opts.paceMs ?? 450; // pace to reduce 429s
+  const retryBaseMs = opts.retryBaseMs ?? 1000;
+  getDb();
+  const previous = new Map(getMarketSnapshots().map((s) => [s.symbol, s]));
+  const results: SymbolResult[] = [];
+  let rateLimited = false;
   for (const item of MARKET_UNIVERSE) {
-    const snap = await fetchOne(item);
-    results.push(snap);
-    await sleep(450); // pace to reduce 429s
+    if (rateLimited) {
+      // Stop hammering a provider that already said 429 in this run.
+      const now = new Date().toISOString();
+      results.push({
+        snap: { symbol: item.symbol, name: item.name, category: item.category, price: null, change1d: null, change1w: null, change1m: null, volatilityEst: null, isProxy: item.isProxy, proxyNote: item.proxyNote, provenance: { source: "Yahoo Finance chart API", sourceTier: 3, fetchedAt: now, quality: "insufficient", errorClass: "rate_limited", note: "Not requested: provider rate-limited earlier in this run" } },
+        outcome: { ok: false, errorClass: "rate_limited", items: 0 },
+      });
+      continue;
+    }
+    const r = await fetchOne(item, fetchImpl, retryBaseMs);
+    results.push(r);
+    if (r.outcome.errorClass === "rate_limited") rateLimited = true;
+    if (paceMs > 0) await sleep(paceMs);
   }
 
-  const liveCount = results.filter((r) => r.provenance.quality === "live" && r.price != null).length;
-  const finalResults =
-    liveCount === 0
-      ? MARKET_UNIVERSE.map((item) => {
-          const failed = results.find((r) => r.symbol === item.symbol);
-          const demo = demoSnapshot(item);
-          return {
-            ...demo,
-            provenance: {
-              ...demo.provenance,
-              note: `ILLUSTRATIVE SAMPLE used because live fetch failed (${failed?.provenance.note || "unknown"}). Not a live quote.`,
-            },
-          };
-        })
-      : results.map((r) =>
-          r.price == null && r.provenance.quality === "insufficient"
-            ? (() => {
-                const item = MARKET_UNIVERSE.find((u) => u.symbol === r.symbol)!;
-                const demo = demoSnapshot(item);
-                return {
-                  ...demo,
-                  provenance: {
-                    ...demo.provenance,
-                    note: `Per-symbol fallback: ${r.provenance.note}. Demo figures — not live.`,
-                  },
-                };
-              })()
-            : r
-        );
+  const finalResults = results.map((r) => (isValidPrice(r.snap.price) ? r.snap : carryForward(r.snap, previous.get(r.snap.symbol))));
 
-  getDb();
   const now = new Date().toISOString();
   for (const snap of finalResults) {
     upsertJson("market_snapshots", "symbol", snap.symbol, snap, { updated_at: now });
   }
-  // Persist ONLY non-demo live/cached quotes into append-only history for resolution
-  persistSnapshotsToHistory(finalResults);
-  setMeta("lastMarketUpdate", now);
-  const liveFinal = finalResults.filter((r) => r.provenance.quality === "live" && r.price != null).length;
-  setMeta(
-    "dataQuality",
-    liveFinal >= finalResults.length * 0.6 ? "live" : liveFinal > 0 ? "cached" : "demo"
-  );
+  // Append-only history gets ONLY fresh, valid, non-demo quotes (carried-forward values are not re-recorded).
+  persistSnapshotsToHistory(finalResults.filter((s) => !s.provenance.carriedForward && isValidPrice(s.price)));
+
+  const okN = results.filter((r) => r.outcome.ok).length;
+  const failed = results.filter((r) => !r.outcome.ok);
+  const classes = failed.reduce<Record<string, number>>((a, r) => ((a[r.outcome.errorClass] = (a[r.outcome.errorClass] ?? 0) + 1), a), {});
+  const newest = results.map((r) => r.outcome.newestObservationAt).filter((x): x is string => !!x).sort().pop() ?? null;
+  recordAttempt("yahoo_markets", {
+    ok: okN > 0,
+    errorClass: okN > 0 ? "ok" : rateLimited ? "rate_limited" : (Object.keys(classes)[0] as AttemptOutcome["errorClass"]) ?? "unavailable",
+    httpStatus: okN > 0 ? 200 : results.find((r) => r.outcome.httpStatus)?.outcome.httpStatus ?? null,
+    latencyMs: results.reduce((a, r) => a + (r.outcome.latencyMs ?? 0), 0),
+    items: okN,
+    newestObservationAt: newest,
+    error: failed.length ? `${failed.length}/${results.length} symbols without valid quote: ${failed.map((r) => `${r.snap.symbol}=${r.outcome.errorClass}`).join(", ")}`.slice(0, 300) : null,
+  });
+
+  if (okN > 0) setMeta("lastMarketUpdate", now);
+  setMeta("dataQuality", computeDataQualityLabel());
   return finalResults;
 }
 

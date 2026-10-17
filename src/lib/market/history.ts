@@ -34,7 +34,7 @@ export function insertHistoryPoint(point: Omit<MarketHistoryPoint, "id"> & { id?
 export function persistSnapshotsToHistory(snaps: MarketSnapshot[]): number {
   let n = 0;
   for (const snap of snaps) {
-    if (snap.price == null || !Number.isFinite(snap.price)) continue;
+    if (snap.price == null || !Number.isFinite(snap.price) || snap.price <= 0) continue; // invalid quotes never enter history
     // Never treat demo/illustrative prices as resolvable market history
     if (snap.provenance.quality === "demo") continue;
     insertHistoryPoint({
@@ -53,7 +53,7 @@ export function persistSnapshotsToHistory(snaps: MarketSnapshot[]): number {
 
 export function getHistoryForSymbol(symbol: string): MarketHistoryPoint[] {
   const rows = getDb()
-    .prepare(`SELECT data FROM market_history WHERE symbol = ? ORDER BY ts ASC`)
+    .prepare(`SELECT data FROM market_history WHERE symbol = ? AND price > 0 ORDER BY ts ASC`)
     .all(symbol) as { data: string }[];
   return rows.map((r) => JSON.parse(r.data) as MarketHistoryPoint);
 }
@@ -77,7 +77,7 @@ export function findClosestObservation(
   if (!Number.isFinite(target)) return null;
 
   const rows = getDb()
-    .prepare(`SELECT data FROM market_history WHERE symbol = ?`)
+    .prepare(`SELECT data FROM market_history WHERE symbol = ? AND price > 0`) // non-positive rows are invalid (see data_quality_flags)
     .all(symbol) as { data: string }[];
 
   let best: MarketHistoryPoint | null = null;

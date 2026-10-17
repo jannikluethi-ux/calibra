@@ -37,6 +37,12 @@ export interface Provenance {
   fetchedAt: string;
   quality: DataQuality;
   note?: string;
+  /** Source-reported observation time (e.g. Yahoo regularMarketTime), UTC ISO. */
+  observedAt?: string | null;
+  /** True when the live fetch failed and the last valid snapshot is shown unchanged (never written to history again). */
+  carriedForward?: boolean;
+  /** Why the latest fetch did not produce a valid quote. */
+  errorClass?: string;
 }
 
 export interface MarketSnapshot {
@@ -91,6 +97,8 @@ export interface FinancialEvent {
   quality: DataQuality;
   tags: string[];
   classification: EventClassification;
+  /** Ingestion provenance (records ingested from 2026-10-17 onward; older rows may lack it). */
+  provenance?: EventProvenance;
   /** Explicit evidence layers for UI (Observed / Interpretation / Assumption / Estimate) */
   evidenceLayers?: {
     observed: string[];
@@ -98,6 +106,23 @@ export interface FinancialEvent {
     modelAssumptions: string[];
     scenarioEstimates: string[];
   };
+}
+
+/** Where an event record came from and what was done to it. Times are UTC ISO-8601. */
+export interface EventProvenance {
+  sourceId: string;
+  sourceName: string;
+  feedUrl: string;
+  itemUrl: string | null;
+  /** Publish time reported by the source; null when the item carried none (never back-filled with retrieval time). */
+  sourcePublishedAt: string | null;
+  retrievedAt: string;
+  /** observed = taken from the source; derived = computed from observed fields; estimated = model output; missing = absent. */
+  fields: Record<string, "observed" | "derived" | "estimated" | "missing">;
+  transformations: string[];
+  /** Filled by the clustering pass (event_clusters); originals are never merged or deleted. */
+  corroboration?: { canonicalEventId: string | null; clusterSize: number; sources: string[] } | null;
+  pipeline: string;
 }
 
 export type EventType =

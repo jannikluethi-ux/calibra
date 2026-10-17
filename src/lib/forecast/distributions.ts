@@ -301,7 +301,10 @@ export function bootstrapShortHorizonForecasts(): Forecast[] {
     return getForecasts().filter((f) => !f.isSeed && (f.horizon === "1d" || f.horizon === "2d"));
   }
 
-  const snaps = getMarketSnapshots().filter((s) => s.price != null);
+  // Only fresh, valid, live quotes may become forecast origin prices (no demo, no carried-forward, no zero).
+  const snaps = getMarketSnapshots().filter(
+    (s) => s.price != null && Number.isFinite(s.price) && s.price > 0 && s.provenance.quality === "live" && !s.provenance.carriedForward
+  );
   const created: Forecast[] = [];
 
   // A) Forward-looking short horizons from NOW (will resolve as time passes / on refresh)
@@ -384,7 +387,10 @@ export function refreshForecasts(): Forecast[] {
     }
   }
 
-  const snaps = getMarketSnapshots().filter((s) => s.price != null);
+  // Only fresh, valid, live quotes may become forecast origin prices (no demo, no carried-forward, no zero).
+  const snaps = getMarketSnapshots().filter(
+    (s) => s.price != null && Number.isFinite(s.price) && s.price > 0 && s.provenance.quality === "live" && !s.provenance.carriedForward
+  );
   const focus = ["BTC", "SPX", "ETH", "GOLD", "US10Y", "EURUSD", "VIX", "OIL"];
 
   for (const sym of focus) {
