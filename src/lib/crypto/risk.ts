@@ -1,4 +1,5 @@
 import { getDb } from "../db";
+import { archiveV1Assessments } from "./risk-store";
 
 /**
  * Crypto research score. Not a buy, sell, or exit signal.
@@ -131,6 +132,8 @@ interface QuoteRow {
 
 export function scoreQuotedCrypto(): number {
   const db = getDb();
+  // research_v1 upserts overwrite rows; archive the current ones into append-only history first.
+  archiveV1Assessments();
   const rows = db
     .prepare(
       `SELECT i.id, i.quote_status, i.volume_24h, i.market_cap, i.change_24h_pct,
@@ -213,5 +216,6 @@ export function scoreQuotedCrypto(): number {
     }
   });
   tx();
+  archiveV1Assessments();
   return rows.length;
 }
