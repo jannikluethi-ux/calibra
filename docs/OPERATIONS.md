@@ -152,3 +152,20 @@ Rollback: `git checkout <previous commit>` and repeat the build, or stop prod an
 
 ### Tests
 `npm run test:unit` (node:test via tsx, temp databases only) and `npm test` (maintenance bash tests + unit tests).
+
+## Batch 2 additions (17 Oct 2026)
+
+### Crypto intelligence job
+* Scheduler job `crypto` (every ~6 h, ≤2 retries after ~1 h). Status and last error: `/settings/scheduler`, meta
+  `scheduler.last.crypto` / `scheduler.error.crypto` / `scheduler.retry.crypto`. Source health: `/api/sources/health`.
+* Manual equivalent of the first step only: `npx tsx scripts/sync-crypto-sources.ts` (do not run while the server's job is running).
+* New additive tables (no existing table altered): `crypto_market_snapshots`, `crypto_price_history`, `crypto_contracts`,
+  `crypto_categories`, `crypto_security_incidents`, `crypto_protocol_map`, `crypto_risk_scores` (append-only history,
+  includes archived `research_v1` rows), `crypto_risk_latest` (derived pointer, rebuilt every run).
+* Rollback: restore the previous `.next` build from `/workspace/calibra-backups/next-build-<BUILD_ID>.tgz` and restart via
+  `scripts/ensure-prod.sh`; the new tables are ignored by the older build. Data rollback (only if needed): the verified backup
+  taken before the deploy.
+
+### New routes
+`/crypto/high-risk`, `/crypto/methodology`, `/data-quality`, `/api/crypto/high-risk`; `/crypto/risk` now redirects (307) to
+`/crypto/high-risk` with its query preserved. Methodology: `docs/crypto-risk-methodology.md`.

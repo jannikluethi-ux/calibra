@@ -1,12 +1,13 @@
 # Development roadmap
 
-Updated 17 Oct 2026 (end of Batch 1), Zurich time (UTC+2). Commits are local only; pushing is the owner's decision.
+Updated 17 Oct 2026 (end of Batch 2), Zurich time (UTC+2). Commits are local only; pushing is the owner's decision.
 
 ## Priorities
 1. **Data quality and source reliability** (Batch 1, done except items listed under "In progress").
-2. Crypto intelligence (scheduled crypto sync, coverage, risk freshness), proposed for Batch 2.
+2. **Crypto intelligence** (Batch 2, done; see below).
 3. Forecast/scenario quality and evaluation (larger resolved sample before any performance statement).
-4. Product/UX: a data-quality page, provenance shown on event and asset pages.
+3a. **Event intelligence** (proposed Batch 3, see end).
+4. Product/UX: provenance shown on event and asset pages (data-quality page done in Batch 2).
 5. Hosting migration (deferred, see checklist below).
 
 ## Completed in Batch 1
@@ -24,8 +25,21 @@ Updated 17 Oct 2026 (end of Batch 1), Zurich time (UTC+2). Commits are local onl
 | Jobs wired; `GET /api/data-quality`, `GET /api/sources/health`; UI shows degraded/stale in amber | 160e157, a86e2df |
 | 32 unit tests (`npm run test:unit`) | across the above |
 
+## Completed in Batch 2 (crypto intelligence)
+| Item | Commit(s) |
+|---|---|
+| Additive crypto tables, paced CoinGecko/DefiLlama market sync (FDV, ATH, contracts, categories, hacks, daily history), time-bounded 429 guard | 52bf21a |
+| `crypto_risk_v2`: transparent 10-factor model, basis labels, unknown ≠ safe, score vs confidence, structural vs volatility, append-only history, research_v1 archived | 12b58dd |
+| Scheduler job `crypto` (~6 h, ≤2 retries, never triggers derive) | 1aadfcf |
+| `/crypto/high-risk` (views, data-backed filters, sort, search, URL state), explainable `/crypto/[id]` profile, `/crypto/methodology`, `/data-quality`, `/api/crypto/high-risk`, separate Crypto nav | bb903a0 |
+| Data-quality summary uses crypto snapshots and v2 scores | 851ce81 |
+| 27 new unit tests (59 total) | 7c1d5f0 |
+| Methodology and docs | docs commit |
+
+Crypto development plan and verified gaps: `docs/crypto-risk-methodology.md` §11.
+
 ## In progress / not done in Batch 1
-* Data-quality page in the UI (the API exists; the status bar shows the label and points to the API).
+* ~~Data-quality page in the UI~~ (done in Batch 2: `/data-quality`).
 * Provenance is stored on new events but not yet shown on event pages.
 * Existing (pre-Batch 1) events have no provenance block; it is not back-filled because original retrieval times are unknown.
 
@@ -33,7 +47,7 @@ Updated 17 Oct 2026 (end of Batch 1), Zurich time (UTC+2). Commits are local onl
 1. Push the local commits to GitHub (`main`)?
 2. DE10Y: the 1,312 zero-price history rows are kept and flagged. Quarantine/delete them? Replace the `BUND.DE` proxy with the
    Bundesbank yield as the DE10Y series (changes units from ETF price to yield %)?
-3. Schedule the crypto source sync (currently manual; crypto data is ≈36 h stale and is reported as such)?
+3. ~~Schedule the crypto source sync~~ Decided 17 Oct: in-app scheduler job `crypto` (done in Batch 2).
 4. IMF RSS returns 403 to this host: keep with back-off, or remove?
 5. US2Y is a 13-week bill proxy: switch to the official Treasury 2Y for display and resolution (affects open forecasts)?
 6. The 15 Oct one-shot dedupe deleted 19,543 events; Batch 1 keeps that history as is (no restore attempted).
@@ -63,6 +77,11 @@ done. Readiness: **AMBER**.
 * Event clustering may still miss same-story pairs (false negatives are preferred) or link related follow-ups; links are reversible.
 * 20 resolved forecasts are not enough to judge skill; do not market performance.
 
-## Next tasks (proposed Batch 2)
-See the Batch 1 report: scheduled crypto sync with health, crypto freshness on crypto pages, data-quality UI page,
-provenance on event pages, DE10Y/US2Y series decision implementation, and evaluation hygiene.
+## Next tasks (proposed Batch 3: Priority 3 event intelligence)
+* Show stored event provenance (source, retrieval time, claim type) and cluster membership on event pages.
+* Contract/CoinGecko-id verified crypto ↔ event linking (replace name/unique-symbol matching; ticker collisions never link).
+* Event taxonomy for crypto risk events (exploit, de-peg, delisting, regulatory action, unlock) feeding a *qualitative* factor with
+  evidence links, kept separate from the measured factors.
+* Source diversification to reduce the ≈96 % CNBC share (free, keyless official/institutional feeds only).
+* Event freshness and duplicate-rate metrics on `/data-quality`.
+* Start the crypto_risk_v2 validation log (record de-pegs/exploits/delistings as outcomes for the planned backtest).

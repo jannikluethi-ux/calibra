@@ -13,10 +13,11 @@ Live state: `GET /api/sources/health`. All sources are free and keyless. No paid
 | rss_reuters | Reuters business | feeds.reuters.com | news | events | **DNS fails** | — | **Disabled** 17 Oct (retired host, 0 events ever stored) |
 | ust_yield_curve | U.S. Treasury daily par yield curve CSV | home.treasury.gov …daily_treasury_yield_curve | primary official (public domain) | corroboration of US10Y; official 2Y context | 200 (16 Oct: 2Y 4.74, 10Y 5.09) | 5 d | **New in Batch 1** |
 | bundesbank_yields | Bundesbank 10Y Bund yield (BBSIS …R10XX) | api.statistiken.bundesbank.de | primary official (attribution required) | official DE10Y yield; corroboration | 200 (16 Oct: 3.45 %) | 5 d | **New in Batch 1** |
-| coinbase | Coinbase Exchange public ticker | api.exchange.coinbase.com | established market data | crypto prices | 200 | 24 h | Manual sync only |
-| coingecko | CoinGecko simple/price, global | api.coingecko.com | secondary aggregator | crypto prices, market caps | 200 | 24 h | Manual sync; public rate limits |
-| coingecko_project | CoinGecko coin detail | api.coingecko.com | secondary aggregator | project metadata | 200 | 7 d | Manual sync |
-| defillama | DefiLlama protocols | api.llama.fi/protocols | secondary aggregator | TVL | 200 | 24 h | Manual sync; 9 MB response |
+| coinbase | Coinbase Exchange public ticker | api.exchange.coinbase.com | established market data | crypto prices (corroboration) | 200 | 24 h | Scheduled `crypto` job (~6 h) since Batch 2 |
+| coingecko | CoinGecko simple/price, global; **Batch 2:** `/coins/markets` top 1,000 (FDV, ATH, 7d/30d), `/coins/list?include_platform=true` (contracts, daily), category markets for 6 categories (daily), `/coins/{id}/market_chart` 90 d (rotating) | api.coingecko.com | secondary aggregator | crypto profiles, crypto_risk_v2, high-risk list | 200 (17 Oct: 19 calls, no 429) | 24 h | Scheduled `crypto` job (~6 h), ~7 s pacing, 429 stops the run, ≤2 retries |
+| coingecko_project | CoinGecko coin detail | api.coingecko.com | secondary aggregator | project metadata | 200 | 7 d | Runs inside the `crypto` job (few ids) |
+| defillama | DefiLlama protocols | api.llama.fi/protocols | secondary aggregator | TVL; protocol → CoinGecko id map (Batch 2) | 200 | 24 h | `crypto` job; 9 MB response |
+| defillama_hacks | DefiLlama hacks database | api.llama.fi/hacks | secondary aggregator | crypto security incidents (crypto_risk_v2 security factor) | 200 (17 Oct: 1,306 records) | 3 d | **New in Batch 2.** Attached only via protocol `gecko_id`, never by ticker; absence of a record is not evidence of safety |
 | kraken, binance | public tickers | — | — | — | not called | — | Disabled fallbacks |
 | edgar, github, audits | — | — | — | — | not connected | — | Disabled stubs; data shown as insufficient |
 | (probed, not added) FRED CSV | fred.stlouisfed.org | — | — | — | **no response** from this host | — | Not added: unreachable here |
