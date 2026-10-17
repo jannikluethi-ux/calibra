@@ -8,8 +8,9 @@ const TABS = [
   { href: "/crypto", label: "Overview", exact: true },
   { href: "/crypto/assets", label: "Assets" },
   { href: "/crypto/categories", label: "Categories" },
-  { href: "/crypto/risk", label: "Higher-uncertainty" },
+  { href: "/crypto/high-risk", label: "High-risk" },
   { href: "/crypto/coverage", label: "Coverage" },
+  { href: "/crypto/methodology", label: "Methodology" },
 ];
 
 /** Shared crypto section header + tab bar. Copy stays research-only, non-advisory. */
@@ -18,7 +19,7 @@ export function CryptoHeader({ title, children }: { title: string; children?: Re
   return (
     <div className="space-y-4">
       <div>
-        <div className="micro-label text-accent">Markets · Crypto</div>
+        <div className="micro-label text-accent">Crypto intelligence · research only</div>
         <h1 className="mt-2 font-display text-display-l text-ink">{title}</h1>
         {children && <div className="mt-2 text-sm text-ink-2 max-w-3xl">{children}</div>}
       </div>

@@ -33,11 +33,17 @@ export const SECONDARY: { label: string; items: NavItem[] }[] = [
       { href: "/assets", label: "Assets" },
       { href: "/countries", label: "Countries" },
       { href: "/map", label: "Causal map" },
+    ],
+  },
+  {
+    label: "Crypto",
+    items: [
       { href: "/crypto", label: "Crypto overview", exact: true },
       { href: "/crypto/assets", label: "Crypto assets" },
       { href: "/crypto/categories", label: "Crypto categories" },
-      { href: "/crypto/risk", label: "Higher-uncertainty assets" },
+      { href: "/crypto/high-risk", label: "High-risk crypto" },
       { href: "/crypto/coverage", label: "Crypto coverage" },
+      { href: "/crypto/methodology", label: "Crypto risk methodology" },
     ],
   },
   {
@@ -54,6 +60,7 @@ export const SECONDARY: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/pricing", label: "Pricing" },
       { href: "/docs/api", label: "API docs" },
+      { href: "/data-quality", label: "Data quality" },
       { href: "/settings/scheduler", label: "Scheduler" },
     ],
   },

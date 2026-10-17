@@ -5,6 +5,10 @@ import { getResearch } from "@/lib/crypto/research";
 import { fmtCompact, fmtPct, fmtPrice } from "@/lib/crypto/format";
 import { fmtTime } from "@/lib/format";
 import { INFO_RULE_TEXT, LIQUIDITY_RULE_TEXT, MOVE_RULE_TEXT, RISK_FACTORS } from "@/lib/crypto/risk";
+import { CryptoHeader } from "@/components/crypto/CryptoHeader";
+import { RiskProfileSections } from "@/components/crypto/RiskProfileSections";
+import { getRiskProfile } from "@/lib/crypto/risk-store";
+import { backHref } from "@/lib/crypto/highrisk-query";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +21,21 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function CryptoResearchPage({ params }: { params: { id: string } }) {
+export default function CryptoResearchPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
   const data = getResearch(params.id);
   if (!data.found || !data.instrument) notFound();
   const inst = data.instrument;
+  const fromRaw = searchParams?.from;
+  const from = Array.isArray(fromRaw) ? fromRaw[0] : fromRaw;
+  const back = from !== undefined ? backHref(from) : null;
+  const profile = getRiskProfile(inst.id);
+  const hasCoinbase = data.observations.some((o) => o.source_id === "coinbase");
   const price = data.canonical?.price as
     | {
         value: number | null;
@@ -38,16 +53,24 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
   const components = (data.risk?.components || null) as Record<string, { score: number; detail: string } | null> | null;
 
   return (
-    <div className="space-y-3 max-w-4xl">
+    <div className="space-y-3 max-w-5xl">
+      <CryptoHeader title={`${inst.name} (${inst.symbol.toUpperCase()})`} />
+      {back && (
+        <Link href={back} className="btn-secondary" data-testid="back-to-list">
+          ← Back to high-risk list
+        </Link>
+      )}
       <div>
-        <h1 className="text-sm font-semibold text-ink">
+        <h2 className="text-sm font-semibold text-ink">
           {inst.name} <span className="text-ink-3">{inst.symbol}</span>
-        </h1>
+        </h2>
         <p className="text-caption text-ink-3 mt-1">
           {data.tier_text}. Rank {inst.rank ?? "Unknown"}. Quote {inst.quote_status}. Source row {inst.data_source}. Research only, not a buy or sell signal.
         </p>
         <p className="text-caption text-ink-3 break-all">Instrument id {inst.id}</p>
       </div>
+
+      <RiskProfileSections p={profile} hasCoinbase={hasCoinbase} />
 
       <Panel title="Price">
         {price && typeof price.value === "number" ? (
@@ -142,7 +165,7 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
         </ul>
       </Panel>
 
-      <Panel title="Research score">
+      <Panel title="Legacy research score (research_v1, kept for history)">
         {data.risk ? (
           <div className="text-sm text-ink-2 space-y-2">
             <p>
@@ -224,7 +247,7 @@ export default function CryptoResearchPage({ params }: { params: { id: string } 
         )}
       </Panel>
 
-      <Panel title="Linked news">
+      <Panel title="Related events (linked news)">
         <p className="text-caption text-ink-3 mb-2">
           {data.news_count} stored live events matched this instrument by a whole-token name or a unique live symbol. Demo events are not linked.
         </p>
