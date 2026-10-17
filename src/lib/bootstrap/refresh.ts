@@ -17,6 +17,10 @@ import { persistWarnings } from "../warnings/detect";
 import { ensureDefaultAlerts, evaluateAlerts } from "../alerts/store";
 import type { FiredAlert } from "../types";
 import { getMeta, setMeta, getDb } from "../db";
+import { computeDataQualityLabel } from "../quality/summary";
+import { flagInvalidHistoryPrices } from "../quality/flags";
+import { runEventClustering } from "../ingestion/cluster";
+import { runOfficialRates } from "../sources/adapters/official-rates";
 import {
   cleanupExactTitleDuplicateEvents,
   cleanupDuplicateScenariosByEventId,
@@ -102,6 +106,16 @@ export async function refreshMarketsOnly(): Promise<MarketsRefreshResult> {
   } catch (e) {
     errors.push(`market: ${e instanceof Error ? e.message : String(e)}`);
   }
+  // Official keyless rate sources (corroboration only), at most every 6 h; isolated from Yahoo.
+  try {
+    const last = Date.parse(getMeta("officialRatesLastRun") ?? "");
+    if (!Number.isFinite(last) || Date.now() - last > 6 * 3600_000) {
+      setMeta("officialRatesLastRun", new Date().toISOString());
+      await runOfficialRates();
+    }
+  } catch (e) {
+    errors.push(`official-rates: ${e instanceof Error ? e.message : String(e)}`);
+  }
   return { marketCount, marketLive, errors, changed: marketCount > 0 || errors.length > 0 };
 }
 
@@ -115,6 +129,7 @@ export async function refreshEventsOnly(): Promise<EventsRefreshResult> {
     const ing = await ingestRssFeeds();
     eventsLive = ing.live;
     eventsDemo = ing.demo;
+    // Per-feed failures are recorded in the source-health registry (source_health), not as job errors.
     ensureDemoEventsIfEmpty();
     reclassifyEventsV2({ limit: 120, onlyOutdated: true });
   } catch (e) {
@@ -125,6 +140,12 @@ export async function refreshEventsOnly(): Promise<EventsRefreshResult> {
     } catch (e2) {
       errors.push(`reclassify: ${e2 instanceof Error ? e2.message : String(e2)}`);
     }
+  }
+  // Link same-story duplicates to a canonical event (originals kept; audited).
+  try {
+    runEventClustering({ sinceDays: 3 });
+  } catch (e) {
+    errors.push(`clustering: ${e instanceof Error ? e.message : String(e)}`);
   }
   return {
     eventsLive,
@@ -230,20 +251,13 @@ export async function runDeriveOnly(opts?: {
     errors.push(`alerts: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  // Recompute quality from current store
-  const snaps = getMarketSnapshots();
-  const marketLive = snaps.filter((m) => m.provenance.quality === "live" && m.price != null).length;
-  const evs = getEvents(200);
-  const eventsLive = evs.filter((e) => e.quality === "live").length;
-  const eventsDemo = evs.filter((e) => e.quality === "demo").length;
-  const dq =
-    marketLive >= 12 && eventsLive > 0
-      ? "live"
-      : marketLive > 0
-        ? "cached"
-        : eventsDemo > 0
-          ? "demo"
-          : "insufficient";
+  // Recompute quality from current store (freshness, failing sources, invalid values; see quality/summary.ts)
+  try {
+    flagInvalidHistoryPrices();
+  } catch (e) {
+    errors.push(`quality-flags: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  const dq = computeDataQualityLabel();
   setMeta("dataQuality", dq);
 
   return {
@@ -395,7 +409,7 @@ export function getStatus() {
     lastEventUpdate: getMeta("lastEventUpdate"),
     lastRiskUpdate: getMeta("lastRiskUpdate"),
     lastResolveRun: pipeline.lastRun,
-    dataQuality: (getMeta("dataQuality") as "live" | "cached" | "demo" | "insufficient") || "insufficient",
+    dataQuality: (getMeta("dataQuality") as "live" | "degraded" | "stale" | "cached" | "demo" | "insufficient") || "insufficient",
     marketCount: getMarketSnapshots().length,
     historyPoints: countHistory(),
     eventCount: getEvents(500).length,
