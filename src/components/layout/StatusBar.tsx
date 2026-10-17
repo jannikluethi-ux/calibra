@@ -96,7 +96,7 @@ export function StatusBar() {
     .pop() as string | undefined;
   const q = status?.dataQuality;
   const dot =
-    q === "live" ? "bg-dq-fresh" : q === "cached" || q === "demo" || q === "proxy" ? "bg-dq-stale" : "bg-dq-insufficient";
+    q === "live" ? "bg-dq-fresh" : q === "cached" || q === "demo" || q === "proxy" || q === "degraded" || q === "stale" ? "bg-dq-stale" : "bg-dq-insufficient";
   const qLabel = !status ? "Checking data…" : q === "live" ? "Live data" : q ? `${q[0].toUpperCase()}${q.slice(1)} data` : "Data status unknown";
 
   return (
@@ -109,7 +109,7 @@ export function StatusBar() {
         className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-1 px-3 py-1 text-ink-2"
         title={
           status
-            ? `Markets updated ${shortStamp(status.lastMarketUpdate)} · Events updated ${shortStamp(status.lastEventUpdate)} · ${status.marketCount} market snapshots · ${status.eventCount} events stored${sched?.lastRuns?.derive ? ` · derive ${shortStamp(sched.lastRuns.derive)}` : ""}`
+            ? `Markets updated ${shortStamp(status.lastMarketUpdate)} · Events updated ${shortStamp(status.lastEventUpdate)} · ${status.marketCount} market snapshots · ${status.eventCount} events stored${sched?.lastRuns?.derive ? ` · derive ${shortStamp(sched.lastRuns.derive)}` : ""}${q && q !== "live" ? " · details: /api/data-quality" : ""}`
             : undefined
         }
       >

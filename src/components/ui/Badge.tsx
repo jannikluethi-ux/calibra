@@ -30,7 +30,7 @@ export function QualityBadge({ quality }: { quality: string }) {
       ? "green"
       : quality === "cached"
         ? "blue"
-        : quality === "demo"
+        : quality === "demo" || quality === "degraded" || quality === "stale"
           ? "amber"
           : quality === "proxy"
             ? "purple"
