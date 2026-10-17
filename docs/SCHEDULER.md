@@ -10,10 +10,10 @@ All “session hours” and weekday/weekend logic use **Europe/Zurich**.
 |-----|----------------------|------|
 | `markets-fast` | Every **~10 min**, weekdays **08:00–22:00** | Yahoo quotes via `refreshMarketData` + append `market_history` (~0.45s/symbol pacing). Demo quotes never enter history. |
 | `events` | Every **~20 min** weekdays; **hourly** weekends | RSS ingest + classify v2 (`ingestRssFeeds`). |
-| `derive` | After markets and/or events **changed in that tick** | scenarios → forecasts → resolve → calibration → risk → causal → warnings → evaluate alerts. **No** Yahoo history backfill. |
+| `derive` | After markets and/or events **changed in that tick** | event intelligence (assessments, mappings, conflicts; Batch 3) → scenarios (v2 for new material events) → forecasts → resolve → calibration → risk → causal → warnings → evaluate alerts. **No** Yahoo history backfill. |
 | `markets-slow` | **Hourly** outside the fast window (overnight / weekend) | Light market pull (same Yahoo path, no backfill). Mutually exclusive with `markets-fast`. |
 | `daily-maintenance` | **Once** in the Zurich **06:xx** hour | History backfill if thin (`countHistory < 40`), reclassify leftovers, hygiene seeds. Not every tick. |
-| `crypto` | Every **~6 h** (after a failed / CoinGecko-429 run: retry after ~1 h, at most 2 times) | Batch 2. Existing crypto source adapters + consensus + research_v1 (archived first), paced CoinGecko market sync (~7 s between calls, ~20 calls), daily-gated platforms/categories/DefiLlama hacks, rotating price history, then `crypto_risk_v2` scoring. Runs last in the tick; **never** triggers `derive`. Health in `/api/sources/health` (`coingecko`, `defillama_hacks`). |
+| `crypto` | Every **~6 h** (after a failed / CoinGecko-429 run: retry after ~1 h, at most 2 times) | Batch 2. Existing crypto source adapters + consensus + research_v1 (archived first), paced CoinGecko market sync (~7 s between calls, ~20 calls), daily-gated platforms/categories/DefiLlama hacks, rotating price history, then `crypto_risk_v2` scoring, then crypto risk events / event factor / outcome log (Batch 3). Runs last in the tick; **never** triggers `derive`. Health in `/api/sources/health` (`coingecko`, `defillama_hacks`). |
 
 ## API
 

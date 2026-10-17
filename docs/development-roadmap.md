@@ -1,13 +1,14 @@
 # Development roadmap
 
-Updated 17 Oct 2026 (end of Batch 2), Zurich time (UTC+2). Commits are local only; pushing is the owner's decision.
+Updated 17 Oct 2026 (end of Batch 3), Zurich time (UTC+2). Commits are local only; pushing is the owner's decision.
 
 ## Priorities
 1. **Data quality and source reliability** (Batch 1, done except items listed under "In progress").
 2. **Crypto intelligence** (Batch 2, done; see below).
 3. Forecast/scenario quality and evaluation (larger resolved sample before any performance statement).
-3a. **Event intelligence** (proposed Batch 3, see end).
-4. Product/UX: provenance shown on event and asset pages (data-quality page done in Batch 2).
+3a. **Event intelligence** (Batch 3, done; see below).
+4. Forecasting quality and calibration (proposed Batch 4, see end).
+4a. Product/UX (event provenance pages done in Batch 3).
 5. Hosting migration (deferred, see checklist below).
 
 ## Completed in Batch 1
@@ -38,9 +39,16 @@ Updated 17 Oct 2026 (end of Batch 2), Zurich time (UTC+2). Commits are local onl
 
 Crypto development plan and verified gaps: `docs/crypto-risk-methodology.md` §11.
 
+## Completed in Batch 3 (event intelligence)
+| Item | Commit(s) |
+|---|---|
+| Additive intel tables (assessments, mappings, conflicts, scenario v2 revisions, crypto risk events, event factor, outcome log), `scenarios.schema_version`; rule-based assessments (observation / verified / uncertain / interpretation), 13 mechanisms, curated instrument map, conflict detection, scenario v2 with documented weight and confidence rules; 8 official feeds; event metrics on `/data-quality`; `/events/[id]`, `/events/conflicts`, `/api/events/[id]/intel`; crypto event factor panel; high-risk mobile cards | 492ef88 |
+| Identifier-only crypto news links (contract/CoinGecko id), source-id fallback, wording fixes, link test | 9eb6423 |
+| Methodology (`docs/event-intelligence-methodology.md`) and docs | docs commit |
+
 ## In progress / not done in Batch 1
 * ~~Data-quality page in the UI~~ (done in Batch 2: `/data-quality`).
-* Provenance is stored on new events but not yet shown on event pages.
+* ~~Provenance is stored on new events but not yet shown on event pages.~~ (done in Batch 3: `/events/[id]`).
 * Existing (pre-Batch 1) events have no provenance block; it is not back-filled because original retrieval times are unknown.
 
 ## Owner decisions needed (blockers)
@@ -51,6 +59,8 @@ Crypto development plan and verified gaps: `docs/crypto-risk-methodology.md` §1
 4. IMF RSS returns 403 to this host: keep with back-off, or remove?
 5. US2Y is a 13-week bill proxy: switch to the official Treasury 2Y for display and resolution (affects open forecasts)?
 6. The 15 Oct one-shot dedupe deleted 19,543 events; Batch 1 keeps that history as is (no restore attempted).
+7. SEC fair-access policy asks for a contact email in the User-Agent for sec.gov requests. Provide an address to add (none is invented)?
+8. Pre-v2 scenarios: keep as stored (current policy), or allow v2 sets alongside them for events that already have a pre-v2 row?
 
 ## Deferred hosting work
 The Grok Bot box hibernates when idle (32 resumes, 7,561 s paused on 16–17 Oct; root-cause report in
@@ -72,16 +82,18 @@ done. Readiness: **AMBER**.
 - [ ] Cut-over: freeze writes, online backup, verify integrity + row counts, switch DNS, keep the box as dev/test.
 
 ## Risks
-* Single dominant news source (CNBC ≈96 % of 30-day events) biases scenarios.
+* Single dominant news source (CNBC still the large majority by volume after Batch 3; measured on `/data-quality`) biases events.
 * Yahoo is an unofficial API; rate limits or schema changes would make markets stale (now detected, not hidden).
 * Event clustering may still miss same-story pairs (false negatives are preferred) or link related follow-ups; links are reversible.
 * 20 resolved forecasts are not enough to judge skill; do not market performance.
 
-## Next tasks (proposed Batch 3: Priority 3 event intelligence)
-* Show stored event provenance (source, retrieval time, claim type) and cluster membership on event pages.
-* Contract/CoinGecko-id verified crypto ↔ event linking (replace name/unique-symbol matching; ticker collisions never link).
-* Event taxonomy for crypto risk events (exploit, de-peg, delisting, regulatory action, unlock) feeding a *qualitative* factor with
-  evidence links, kept separate from the measured factors.
-* Source diversification to reduce the ≈96 % CNBC share (free, keyless official/institutional feeds only).
-* Event freshness and duplicate-rate metrics on `/data-quality`.
-* Start the crypto_risk_v2 validation log (record de-pegs/exploits/delistings as outcomes for the planned backtest).
+## Next tasks (proposed Batch 4: Priority 4 forecasting quality and calibration)
+* Forecast audit: definition, origin price, horizon and resolution rule for every stored forecast; flag forecasts whose origin or
+  resolution used carried-forward, proxy (US2Y) or invalid (DE10Y zero) data.
+* Calibration: reliability diagrams and Brier decomposition by horizon, asset class and model version, with sample sizes and
+  confidence intervals; "insufficient sample" shown instead of a score below a minimum n.
+* Baselines: persistence and climatology baselines; skill score vs baseline, reported only with enough resolved cases.
+* Scenario v2 tracking: record, at each horizon end, which listed path best matched the realised move (descriptive only, no
+  claim of skill), and feed it into the calibration views.
+* Event-factor and outcome-log review: first look at de-peg/exploit/exit cases against the crypto_risk_v2 band at logging time.
+* Forecast versioning and append-only history for any parameter change; owner-visible model card.

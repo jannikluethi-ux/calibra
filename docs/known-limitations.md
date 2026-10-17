@@ -1,6 +1,6 @@
 # Known limitations
 
-Updated 17 Oct 2026 (Batch 2), Zurich time (UTC+2).
+Updated 17 Oct 2026 (Batch 3), Zurich time (UTC+2).
 
 ## Hosting
 * The current host (Grok Bot box) hibernates when idle. While paused, no scheduler job runs, so markets/events can be hours old.
@@ -22,8 +22,17 @@ Updated 17 Oct 2026 (Batch 2), Zurich time (UTC+2).
   so volatility, drawdown and BTC/ETH correlation are UNKNOWN for most coins at first; the reported 30-day change is used as a
   labeled fallback. CoinGecko occasionally reports implausible values (e.g. +57,000 % 30-day change, FDV in the trillions for a
   $20M coin); they are shown as reported, not corrected.
-* **Crypto events**: linked news still uses the existing name/unique-symbol matcher; contract-verified event linking is Batch 3.
-* **Events**: ≈96 % of recent events come from CNBC; IMF returns 403; Reuters is disabled (host retired). Fed and ECB publish rarely.
+* **Crypto events** (Batch 3): news is linked to a coin only by contract address or explicit CoinGecko id, so very few links exist
+  (news headlines rarely contain identifiers). Earlier name-based link rows are kept but hidden. Delisting and token-unlock
+  categories have **no free source** and stay empty. Exploits come only from DefiLlama incidents mapped to a protocol `gecko_id`.
+  De-pegs are detected for USD stablecoins below $1 only (yield-bearing tokens above $1 are not de-pegs).
+* **Outcome log**: top-1000 exits need two complete syncs, so the first exits appear after the second crypto run. The log is
+  too young for any validation statement.
+* **Events**: eight official feeds were added in Batch 3 (SNB, BIS, SEC, BoE, BoJ, BoC, CFTC, FSB). They publish a few items per
+  week, while CNBC publishes dozens per day, so CNBC still dominates by volume (shown on `/data-quality` as 7 d / 30 d top share,
+  HHI and official share). IMF returns 403; Reuters is disabled (host retired). BLS, BEA, Eurostat, OECD, World Bank, Destatis and
+  Treasury/OFAC feeds refuse this host's client (403/404/406). The SEC asks for a contact address in the User-Agent; the app does not
+  send one yet (owner decision).
 * Event provenance exists only for events ingested after 17 Oct 2026 (pre-existing events have none; it is not invented).
 * Event times: when an RSS item has no publish date, the retrieval time is used for sorting and the publish time is recorded as missing.
 * Carried-forward market values (quality `cached`) are the last valid quote, unchanged; they are never written to history or used as forecast origins.
@@ -33,6 +42,13 @@ Updated 17 Oct 2026 (Batch 2), Zurich time (UTC+2).
   merges or deletes events. It can link a story and its direct follow-up (e.g. "X to announce" / "X announces") and can miss
   paraphrases. Links can be audited in `event_cluster_history` and removed without data loss.
 * Scenario weights express uncertainty, not trading instructions. Impact scores and transmission mechanisms are heuristic estimates.
+* **Event intelligence (Batch 3)** is rule-based (`docs/event-intelligence-methodology.md`). Mechanism, region and industry tags come
+  from text patterns and can miss paraphrases. Most CNBC items are classified "neutral", so most scenario v2 sets keep the documented
+  prior weights (50/20/20/10). Interpretive conflicts rely on the heuristic sentiment classifier. Weights are relative among four
+  listed paths and are not probabilities, not exhaustive, and not expected returns.
+* **Pre-v2 scenarios**: events that already had a scenario before Batch 3 keep the stored row unchanged (badge PRE-V2) and get no v2
+  set. Only material events without a stored scenario get v2 sets, so v2 coverage grows with new events.
+* Mappings to DE10Y and US2Y inherit their data limits (no valid DE10Y market value; US2Y is a bill proxy).
 * 20 resolved live forecasts (mean Brier 0.151, direction accuracy 0.65) are too few for any claim of predictive skill.
 
 ## Operations
