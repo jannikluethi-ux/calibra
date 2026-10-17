@@ -9,6 +9,7 @@ import { CryptoHeader } from "@/components/crypto/CryptoHeader";
 import { RiskProfileSections } from "@/components/crypto/RiskProfileSections";
 import { getRiskProfile } from "@/lib/crypto/risk-store";
 import { backHref } from "@/lib/crypto/highrisk-query";
+import { EventFactorPanel } from "@/components/crypto/EventFactorPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,7 @@ export default function CryptoResearchPage({
       </div>
 
       <RiskProfileSections p={profile} hasCoinbase={hasCoinbase} />
+      <EventFactorPanel instrumentId={inst.id} />
 
       <Panel title="Price">
         {price && typeof price.value === "number" ? (

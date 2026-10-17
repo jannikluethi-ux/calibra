@@ -138,7 +138,37 @@ export default function HighRiskPage({ searchParams }: { searchParams: Record<st
             {facets.categories.length === 0 && <p className="mt-2 text-caption text-ink-3">Category and network filters appear once category and contract data has been retrieved; they are not offered without data.</p>}
           </Panel>
 
-          <div className="card overflow-x-auto">
+          {/* Mobile (< md): one card per asset, no horizontal scrolling. Desktop keeps the table. */}
+          <div className="space-y-2 md:hidden" data-testid="hr-cards">
+            {list.rows.length === 0 ? (
+              <div className="card p-3 text-sm text-ink-3">No assets match these filters.</div>
+            ) : (
+              list.rows.map((r) => (
+                <div key={r.instrument_id} className="card p-3 space-y-2" data-testid="hr-card">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <Link className="text-accent font-medium break-words" href={detailHref(r.instrument_id, q)}>{r.name}</Link>
+                      <div className="text-caption text-ink-3 break-all">
+                        {r.symbol.toUpperCase()} · id {r.provider_id}
+                        {r.symbol_collisions > 0 && <span className="ml-1 badge border-dq-stale/60 text-dq-stale">ticker shared ×{r.symbol_collisions + 1}</span>}
+                      </div>
+                    </div>
+                    <div className="text-right whitespace-nowrap"><span className="text-ink text-lg">{r.score ?? "—"}</span> <BandBadge band={r.band} /></div>
+                  </div>
+                  <div className="flex flex-wrap gap-1"><RiskTypeBadge type={r.risk_type} /><ConfidenceBadge value={r.confidence} label={r.confidence_label} /><StaleBadge stale={r.stale} /></div>
+                  <ul className="list-disc pl-4 space-y-0.5 text-caption text-ink-2">
+                    {r.reasons.slice(0, 3).map((x, i) => <li key={i} className="break-words">{x}</li>)}
+                  </ul>
+                  <div className="flex justify-between text-caption text-ink-3">
+                    <span>Mcap {fmtCompact(r.market_cap)}</span>
+                    <span>Data {fmtTime(r.market_data_at)}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="card overflow-x-auto hidden md:block">
             <table className="w-full text-sm" data-testid="hr-table">
               <thead className="text-caption uppercase text-ink-3">
                 <tr>

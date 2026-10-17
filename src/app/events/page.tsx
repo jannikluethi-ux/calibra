@@ -6,6 +6,8 @@ import { fmtTime } from "@/lib/format";
 import type { FinancialEvent, TransmissionChainStep } from "@/lib/types";
 import { getSessionUser, userPlanLimits } from "@/lib/auth/session";
 import { UpgradeBanner } from "@/components/billing/UpgradeBanner";
+import Link from "next/link";
+import { eventListBadges } from "@/lib/intel/store";
 
 export const dynamic = "force-dynamic";
 
@@ -161,6 +163,7 @@ export default function EventsPage() {
   const limits = userPlanLimits(user);
   const isFree = !user || user.plan === "free";
   const events = getEvents(limits.eventsPageSize);
+  const badges = eventListBadges(events.map((e) => e.id));
 
   return (
     <div className="space-y-3">
@@ -179,7 +182,8 @@ export default function EventsPage() {
         title={`${events.length} events`}
         right={
           <span className="normal-case tracking-normal text-terminal-muted">
-            Use status bar Refresh to re-ingest · classifier heuristic_v2
+            Use status bar Refresh to re-ingest · classifier heuristic_v2 ·{" "}
+            <Link href="/events/conflicts" className="text-terminal-accent">conflicts</Link>
           </span>
         }
       >
@@ -208,7 +212,26 @@ export default function EventsPage() {
                 </Badge>
                 <span className="text-2xs text-terminal-muted num ml-auto">{fmtTime(e.publishedAt)}</span>
               </div>
-              <h2 className="text-sm font-medium">{e.title}</h2>
+              <h2 className="text-sm font-medium">
+                <Link href={`/events/${e.id}`} className="hover:text-terminal-accent">{e.title}</Link>
+              </h2>
+              {(() => {
+                const b = badges.get(e.id);
+                const p = e.provenance;
+                return (
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-2xs text-terminal-muted" data-testid="event-source-line">
+                    <span>
+                      Source: {e.sourceName}
+                      {p ? ` · ${p.sourceId} · retrieved ${fmtTime(p.retrievedAt)}${p.sourcePublishedAt ? "" : " · no source publish time"}` : " · pre-provenance record"}
+                    </span>
+                    {b && b.groupSize > 1 && <Badge tone="blue">{b.canonical ? `canonical of ${b.groupSize}` : `duplicate (group of ${b.groupSize})`}</Badge>}
+                    {b?.material === true && <Badge tone="green">material</Badge>}
+                    {b && b.conflicts > 0 && <Badge tone="red">{b.conflicts} conflict{b.conflicts > 1 ? "s" : ""}</Badge>}
+                    {b?.scenario && <Badge tone={b.scenario === "v2" ? "purple" : "neutral"}>scenario {b.scenario}</Badge>}
+                    <Link href={`/events/${e.id}`} className="text-terminal-accent underline">details · provenance · consequences</Link>
+                  </div>
+                );
+              })()}
               <p className="text-xs text-terminal-dim mt-1">{e.summary}</p>
 
               {(e.classification.structuredEntities?.institutions?.length ||

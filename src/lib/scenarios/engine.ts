@@ -1,7 +1,9 @@
 import { randomUUID } from "crypto";
 import type { FinancialEvent, Scenario, ScenarioBranch } from "../types";
-import { getDb, upsertJson } from "../db";
+import { getDb } from "../db";
 import { getEvents } from "../ingestion/rss";
+import { ensureIntelTables } from "../intel/schema";
+import { runEventIntelligence, writeScenarioSetsV2 } from "../intel/store";
 
 function branch(
   name: ScenarioBranch["name"],
@@ -274,37 +276,40 @@ function inferAssets(event: FinancialEvent): string[] {
   return Array.from(assets);
 }
 
-function findScenarioByEventId(eventId: string): Scenario | null {
-  const row = getDb()
+
+/** Rebuild/refresh scenarios for recent events (Batch 3: scenario_v2).
+ *  New scenario rows are structured v2 sets built from the event assessment and documented instrument
+ *  mappings (src/lib/intel). Rows written before v2 are never overwritten: an event that already has a
+ *  pre-v2 row keeps it unchanged (shown as "pre-v2"). Non-material events get no scenario.
+ *  The legacy generateScenarioFromEvent()/inferAssets() path above is retained only for reference/tests;
+ *  its keyword-based asset inference is not used for new rows. */
+export function rebuildScenariosFromEvents(limit = 12): Scenario[] {
+  const db = getDb();
+  ensureIntelTables(db);
+  // Make sure recent events are assessed (normally done by the derive step just before this).
+  const recent = getEvents(60, { canonicalOnly: true });
+  const has = db.prepare(`SELECT 1 FROM event_assessments WHERE event_id = ? LIMIT 1`);
+  if (recent.some((e) => e.quality === "live" && !has.get(e.id))) runEventIntelligence({ sinceDays: 21 });
+  // Candidates: the most recent live canonical events (14 days) whose latest assessment is material and that
+  // do not already have a pre-v2 scenario row (those rows stay exactly as stored).
+  const since = new Date(Date.now() - 14 * 86400_000).toISOString();
+  const rows = db
     .prepare(
-      `SELECT data FROM scenarios WHERE json_extract(data, '$.eventId') = ? ORDER BY created_at DESC LIMIT 1`
+      `SELECT e.data FROM events e
+       WHERE e.quality = 'live' AND e.published_at >= ?
+         AND e.id NOT IN (SELECT event_id FROM event_clusters WHERE event_id != canonical_event_id)
+         AND (SELECT a.material FROM event_assessments a WHERE a.event_id = e.id ORDER BY a.id DESC LIMIT 1) = 1
+         AND NOT EXISTS (SELECT 1 FROM scenarios s WHERE json_extract(s.data, '$.eventId') = e.id AND s.schema_version IS NULL)
+       ORDER BY e.published_at DESC LIMIT ?`
     )
-    .get(eventId) as { data: string } | undefined;
-  return row ? (JSON.parse(row.data) as Scenario) : null;
+    .all(since, limit) as { data: string }[];
+  const events = rows.map((r) => JSON.parse(r.data) as FinancialEvent);
+  return writeScenarioSetsV2(events, { max: limit }).scenarios;
 }
 
-/** Rebuild/refresh scenarios for recent events.
- *  Upserts by eventId: reuses the existing scenario row (stable id) when one
- *  already exists for that event, so repeated derive/refresh ticks do not
- *  append unbounded duplicate rows. */
-export function rebuildScenariosFromEvents(limit = 12): Scenario[] {
-  // Same-story duplicates (event_cluster_v1 non-canonical members) do not get their own scenario slot.
-  const events = getEvents(limit, { canonicalOnly: true });
-  getDb();
-  const scenarios: Scenario[] = [];
-  const now = new Date().toISOString();
-  for (const event of events) {
-    const fresh = generateScenarioFromEvent(event);
-    const existing = findScenarioByEventId(event.id);
-    if (existing) {
-      fresh.id = existing.id;
-      fresh.createdAt = existing.createdAt;
-      fresh.updatedAt = now;
-    }
-    upsertJson("scenarios", "id", fresh.id, fresh, { created_at: fresh.createdAt });
-    scenarios.push(fresh);
-  }
-  return scenarios;
+/** "v2" for structured scenario sets, "pre-v2" for rows written before Batch 3 (left as stored). */
+export function scenarioSchemaStatus(s: Pick<Scenario, "schemaVersion" | "v2">): "v2" | "pre-v2" {
+  return s.schemaVersion === 2 && s.v2 ? "v2" : "pre-v2";
 }
 
 // Scenarios derived from demo/illustrative events are excluded from live views and counts

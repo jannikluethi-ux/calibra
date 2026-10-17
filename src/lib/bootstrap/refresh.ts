@@ -2,6 +2,7 @@ import { refreshMarketData, getMarketSnapshots } from "../market/fetch";
 import { backfillHistoricalBars, countHistory } from "../market/history";
 import { ingestRssFeeds, ensureDemoEventsIfEmpty, getEvents, reclassifyEventsV2 } from "../ingestion/rss";
 import { rebuildScenariosFromEvents, ensureScenarios, getScenarios } from "../scenarios/engine";
+import { runEventIntelligence } from "../intel/store";
 import {
   refreshForecasts,
   ensureForecasts,
@@ -170,6 +171,13 @@ export async function runDeriveOnly(opts?: {
   let firedAlerts = 0;
   let firedAlertDetails: FiredAlert[] = [];
   let resolveSummary = emptyResolve();
+
+  // Event intelligence (Batch 3): assessments, conflicts, documented instrument mappings. Feeds scenario_v2.
+  try {
+    runEventIntelligence({ sinceDays: 21 });
+  } catch (e) {
+    errors.push(`event-intel: ${e instanceof Error ? e.message : String(e)}`);
+  }
 
   try {
     scenarios = rebuildScenariosFromEvents(15).length;

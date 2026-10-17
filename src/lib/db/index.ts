@@ -160,6 +160,12 @@ function migrate(db: Database.Database) {
     db.exec(`ALTER TABLE forecasts ADD COLUMN brier_score REAL`);
   }
 
+  // Batch 3: scenario schema version. Additive and nullable: NULL = written before scenario_v2 ("pre-v2");
+  // existing rows keep their data untouched.
+  if (!columnNames(db, "scenarios").includes("schema_version")) {
+    db.exec(`ALTER TABLE scenarios ADD COLUMN schema_version INTEGER`);
+  }
+
   // Indexes that depend on migrated columns
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_forecasts_status ON forecasts(status);

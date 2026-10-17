@@ -4,6 +4,8 @@ import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { getSessionUser, userPlanLimits } from "@/lib/auth/session";
 import { UpgradeBanner } from "@/components/billing/UpgradeBanner";
+import Link from "next/link";
+import { ScenarioV2View, PreV2Badge, DqBadge } from "@/components/intel/ScenarioV2View";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +78,9 @@ export default function ScenariosPage() {
       <div>
         <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">Scenario Engine</h1>
         <p className="text-2xs text-terminal-muted mt-0.5">
-          Base / Bull / Bear / Tail are <strong className="text-terminal-amber">estimates</strong> fed by heuristic_v2 transmission chains. Explicit invalidation conditions. Not predictions.
+          Structured scenario sets (<strong className="text-terminal-accent">v2</strong>) are built from rule-based event assessments and documented instrument mappings. Weights are
+          relative among the listed paths (documented rules W1–W5), not probabilities and not expected returns; sets are not exhaustive. Rows written before v2 are kept as stored and marked{" "}
+          <strong>PRE-V2</strong>. Not predictions.
           {isFree && <span className="text-terminal-amber"> Free teaser: {limits.scenariosTeaser} scenarios.</span>}
         </p>
       </div>
@@ -88,19 +92,30 @@ export default function ScenariosPage() {
           right={
             <span className="normal-case tracking-normal flex gap-1 items-center">
               <Badge tone="amber">ESTIMATE</Badge>
+              {s.schemaVersion === 2 && s.v2 ? <DqBadge status={s.v2.dqStatus} /> : <PreV2Badge />}
               <Badge>{s.timeHorizon}</Badge>
             </span>
           }
         >
           <div className="text-2xs text-terminal-muted mb-2">
-            Affected: {s.affectedAssets.join(", ") || "—"}
+            {s.schemaVersion === 2 ? "Instruments (documented mappings)" : "Affected (pre-v2 keyword mapping)"}: {s.affectedAssets.join(", ") || "none mapped"}
+            {s.eventId && (
+              <>
+                {" · "}
+                <Link className="text-terminal-accent" href={`/events/${s.eventId}`}>source event</Link>
+              </>
+            )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2">
-            <BranchCard {...s.base} tone="blue" />
-            <BranchCard {...s.bull} tone="green" />
-            <BranchCard {...s.bear} tone="red" />
-            <BranchCard {...s.tail} tone="amber" />
-          </div>
+          {s.schemaVersion === 2 && s.v2 ? (
+            <ScenarioV2View s={s} />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2">
+              <BranchCard {...s.base} tone="blue" />
+              <BranchCard {...s.bull} tone="green" />
+              <BranchCard {...s.bear} tone="red" />
+              <BranchCard {...s.tail} tone="amber" />
+            </div>
+          )}
         </Panel>
       ))}
       {!scenarios.length && (

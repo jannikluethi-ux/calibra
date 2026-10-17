@@ -38,6 +38,16 @@ export const RSS_FEEDS: FeedDef[] = [
     active: false,
     inactiveReason: "feeds.reuters.com retired (DNS lookup fails; 0 events ever stored); disabled 2026-10-17",
   },
+  // Official / primary feeds added 2026-10-17 (Batch 3) to reduce single-source concentration. Each was probed
+  // and returned parseable items with publish dates before being added (evidence: feed-probe.txt).
+  { id: "rss_snb", name: "Swiss National Bank Press Releases", url: "https://www.snb.ch/public/en/rss/pressrel", tier: 1, active: true },
+  { id: "rss_bis", name: "BIS Press Releases", url: "https://www.bis.org/doclist/all_pressrels.rss", tier: 1, active: true },
+  { id: "rss_sec", name: "SEC Press Releases", url: "https://www.sec.gov/news/pressreleases.rss", tier: 1, active: true },
+  { id: "rss_boe", name: "Bank of England News", url: "https://www.bankofengland.co.uk/rss/news", tier: 1, active: true },
+  { id: "rss_boj", name: "Bank of Japan What's New", url: "https://www.boj.or.jp/en/rss/whatsnew.xml", tier: 1, active: true },
+  { id: "rss_boc", name: "Bank of Canada Press Releases", url: "https://www.bankofcanada.ca/content_type/press-releases/feed/", tier: 1, active: true },
+  { id: "rss_cftc", name: "CFTC Press Releases", url: "https://www.cftc.gov/RSS/RSSGP/rssgp.xml", tier: 1, active: true },
+  { id: "rss_fsb", name: "Financial Stability Board", url: "https://www.fsb.org/feed/", tier: 1, active: true },
   { id: "rss_cnbc", name: "CNBC Top News", url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114", tier: 3, active: true },
 ];
 

@@ -209,6 +209,14 @@ export async function runCryptoJob(): Promise<JobRunResult> {
   } catch (e) {
     errors.push(`v2 scoring threw: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200));
   }
+  try {
+    // Crypto risk-event taxonomy, separate event factor, and outcome log (Batch 3). Local DB work only.
+    const { runCryptoRiskEvents } = await import("../intel/crypto-events");
+    const ce = runCryptoRiskEvents();
+    detail.riskEvents = { records: ce.records, newRecords: ce.newRecords, newFactorRows: ce.newFactorRows, outcomes: ce.outcomes };
+  } catch (e) {
+    errors.push(`risk events threw: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200));
+  }
   const failed = rateLimited || errors.length > 0;
   const prev = Number(getMeta(META_CRYPTO_RETRY) || 0) || 0;
   const next = failed && prev < CRYPTO_MAX_RETRIES ? prev + 1 : 0;

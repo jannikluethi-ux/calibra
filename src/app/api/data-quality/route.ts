@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { computeDataQualitySummary } from "@/lib/quality/summary";
 import { getClusterMetrics } from "@/lib/ingestion/cluster";
+import { computeEventMetrics } from "@/lib/quality/events";
 
 export const dynamic = "force-dynamic";
 
@@ -13,5 +14,11 @@ export async function GET() {
   } catch {
     eventClusters = null;
   }
-  return NextResponse.json({ ...summary, eventClusters });
+  let eventMetrics = null;
+  try {
+    eventMetrics = computeEventMetrics();
+  } catch {
+    eventMetrics = null;
+  }
+  return NextResponse.json({ ...summary, eventClusters, eventMetrics });
 }

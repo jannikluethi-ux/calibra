@@ -233,6 +233,48 @@ export interface Scenario {
   updatedAt: string;
   snapshotId?: string;
   label: "estimate";
+  /** 2 = structured scenario set (scenario_v2). Absent on rows written before Batch 3 ("pre-v2"). */
+  schemaVersion?: 2;
+  /** Structured scenario set; only on schemaVersion 2 rows. Old rows are left as stored and shown as pre-v2. */
+  v2?: ScenarioSetV2;
+}
+
+/** One structured scenario inside a v2 set. Interpretation is rule-based (see docs/event-intelligence-methodology.md). */
+export interface ScenarioV2 {
+  key: "base" | "upside" | "downside" | "tail";
+  name: string;
+  description: string;
+  /** Relative weight among the listed scenarios (0-100, sums to 100 across the set). Not a probability of occurrence and not an expected return. */
+  weight: number;
+  horizon: TimeHorizon;
+  evidence: string[];
+  assumptions: string[];
+  drivers: string[];
+  /** Universe symbols / instrument ids linked through documented mappings only. */
+  instruments: string[];
+  impactMechanisms: string[];
+  indicatorsToMonitor: string[];
+  invalidationConditions: string[];
+  confidence: number;
+}
+
+export interface ScenarioSetV2 {
+  modelVersion: "scenario_v2";
+  eventId: string;
+  scenarios: ScenarioV2[];
+  exhaustive: false;
+  exhaustivenessNote: string;
+  weightRule: string;
+  weightSteps: string[];
+  conflicts: { id: string; kind: "factual" | "interpretive"; summary: string }[];
+  confidence: number;
+  confidenceSteps: string[];
+  dqStatus: "ok" | "limited" | "conflicted" | "stale";
+  dqReasons: string[];
+  interpretationLabel: "interpretation (rule-based)";
+  assessmentId: number | null;
+  lastUpdate: string;
+  inputHash: string;
 }
 
 export interface ScenarioBranch {
