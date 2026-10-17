@@ -131,8 +131,13 @@ export function computeDataQualitySummary(nowIso = new Date().toISOString()): Da
   if (top && top.share > 0.8) reasons.push(`event source concentration: ${Math.round(top.share * 100)}% of live events in 30 days from ${top.source}`);
 
   // ---- crypto
-  const lastObs = safe(() => (db.prepare(`SELECT MAX(retrieved_at) AS m FROM source_observations WHERE instrument_id NOT LIKE 'rates:%'` /* official rates are not crypto inputs */).get() as { m: string | null }).m, null);
-  const riskAt = safe(() => (db.prepare(`SELECT MAX(computed_at) AS m FROM crypto_risk_assessments`).get() as { m: string | null }).m, null);
+  const obsAt = safe(() => (db.prepare(`SELECT MAX(retrieved_at) AS m FROM source_observations WHERE instrument_id NOT LIKE 'rates:%'` /* official rates are not crypto inputs */).get() as { m: string | null }).m, null);
+  // Batch 2: the scheduled crypto job also writes CoinGecko market snapshots and crypto_risk_v2 scores.
+  const snapAt = safe(() => (db.prepare(`SELECT MAX(retrieved_at) AS m FROM crypto_market_snapshots`).get() as { m: string | null }).m, null);
+  const lastObs = [obsAt, snapAt].filter((x): x is string => !!x).sort().pop() ?? null;
+  const v2At = safe(() => (db.prepare(`SELECT MAX(computed_at) AS m FROM crypto_risk_latest`).get() as { m: string | null }).m, null);
+  const v1At = safe(() => (db.prepare(`SELECT MAX(computed_at) AS m FROM crypto_risk_assessments`).get() as { m: string | null }).m, null);
+  const riskAt = v2At ?? v1At;
   const cAge = ageH(lastObs, now);
   const cryptoStatus: "fresh" | "stale" | "missing" = !lastObs ? "missing" : cAge != null && cAge * H <= FRESHNESS.cryptoMaxAgeMs ? "fresh" : "stale";
   if (cryptoStatus !== "fresh") reasons.push(`crypto source data ${cryptoStatus}: last provider observation ${lastObs ?? "never"} (${cAge ?? "?"} h old)`);
@@ -156,7 +161,7 @@ export function computeDataQualitySummary(nowIso = new Date().toISOString()): Da
   if (eventsStatus !== "fresh") ["scenarios", "warnings", "digest"].forEach((o) => affected.add(o));
   if (cryptoStatus !== "fresh") {
     ["crypto canonical prices", "crypto risk scores", "crypto coverage"].forEach((o) => affected.add(o));
-    skipped.push(`crypto risk scores not recomputed since ${riskAt ?? "never"} (crypto source sync is manual: scripts/sync-crypto-sources.ts)`);
+    skipped.push(`crypto risk scores not recomputed since ${riskAt ?? "never"} (scheduled crypto job runs about every 6 h; manual: scripts/sync-crypto-sources.ts)`);
   }
   for (const f of failingActive) f.downstream.forEach((d) => affected.add(`${d} (via ${f.sourceId})`));
   for (const r of invalidHistoryRows) skipped.push(`market_history ${r.symbol}: ${r.rows} non-positive price rows ignored by history reads and resolution (rows kept; flagged=${r.flagged})`);
