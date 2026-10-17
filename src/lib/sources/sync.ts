@@ -7,6 +7,7 @@ import { ensureSourceTables } from "./schema";
 import { seedSources } from "./seeds";
 import { scoreQuotedCrypto } from "../crypto/risk";
 import { writeCoverageSnapshot } from "../crypto/coverage";
+import { recordAttempt, trackedSource } from "./health";
 
 export interface SyncReport {
   adapters: { id: string; enabled: boolean; result?: AdapterResult; skipped?: string }[];
@@ -34,8 +35,27 @@ export async function runCryptoSourceSync(): Promise<SyncReport> {
         continue;
       }
     }
-    const result = await run();
+    // Isolation: an adapter that throws is recorded as unavailable and the next adapter still runs.
+    const t0 = Date.now();
+    let result: AdapterResult;
+    try {
+      result = await run();
+    } catch (e) {
+      result = { httpStatus: null, ok: false, note: `adapter threw: ${e instanceof Error ? e.message : String(e)}`.slice(0, 300), observations: 0, partial: false };
+    }
     if (id !== "rss_events") setSourceStatus(id, result.httpStatus, result.note);
+    if (trackedSource(id)) {
+      const rl = result.httpStatus === 429 || /429|rate.?limit|too many/i.test(result.note);
+      recordAttempt(id, {
+        ok: result.ok,
+        errorClass: result.ok ? "ok" : rl ? "rate_limited" : "unavailable",
+        httpStatus: result.httpStatus,
+        latencyMs: Date.now() - t0,
+        items: result.observations,
+        newestObservationAt: result.ok && result.observations > 0 ? new Date().toISOString() : null,
+        error: result.ok ? null : result.note,
+      });
+    }
     report.adapters.push({ id, enabled: true, result });
   }
   report.canonicalFields = recomputeCanonical().fields;

@@ -102,6 +102,24 @@ export const SOURCE_SEEDS: SourceSeed[] = [
     enabled: 1,
   },
   {
+    id: "ust_yield_curve",
+    name: "U.S. Treasury daily par yield curve",
+    category: "official_rates",
+    source_class: "primary_official",
+    legal_notes:
+      "home.treasury.gov CSV, no key, U.S. government work (public domain). Daily, published after market close ET. Used for corroboration only.",
+    enabled: 1,
+  },
+  {
+    id: "bundesbank_yields",
+    name: "Deutsche Bundesbank 10Y Bund yield",
+    category: "official_rates",
+    source_class: "primary_official",
+    legal_notes:
+      "api.statistiken.bundesbank.de SDMX CSV, no key; reuse permitted with source attribution 'Deutsche Bundesbank'. Daily. Used for corroboration only.",
+    enabled: 1,
+  },
+  {
     id: "kraken",
     name: "Kraken public ticker",
     category: "market_data",
