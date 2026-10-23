@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { runGuardedJob } from "@/lib/security/job-guard";
 import { ensureSeedData } from "@/lib/bootstrap/refresh";
 import { resolveDueForecasts, getResolvePipelineStatus } from "@/lib/forecast/resolve";
 import { backfillHistoricalBars, countHistory } from "@/lib/market/history";
@@ -13,43 +14,46 @@ export async function GET() {
   return NextResponse.json({ pipeline: getResolvePipelineStatus(), historyPoints: countHistory() });
 }
 
+/** Job trigger — guarded: Bearer $CALIBRA_JOB_TOKEN (see lib/security/job-guard). */
 export async function POST(req: Request) {
-  ensureSeedData();
-  let backfill = false;
-  try {
-    const body = await req.json().catch(() => ({}));
-    backfill = Boolean((body as { backfill?: boolean }).backfill);
-  } catch {
-    backfill = false;
-  }
-
-  const errors: string[] = [];
-  let historyInserted = 0;
-  if (backfill || countHistory() < 40) {
+  return runGuardedJob(req, "forecasts-resolve", async () => {
+    ensureSeedData();
+    let backfill = false;
     try {
-      const bf = await backfillHistoricalBars();
-      historyInserted = bf.inserted;
-      errors.push(...bf.errors);
-    } catch (e) {
-      errors.push(e instanceof Error ? e.message : String(e));
+      const body = await req.json().catch(() => ({}));
+      backfill = Boolean((body as { backfill?: boolean }).backfill);
+    } catch {
+      backfill = false;
     }
-  }
 
-  try {
-    bootstrapShortHorizonForecasts();
-  } catch (e) {
-    errors.push(`bootstrap: ${e instanceof Error ? e.message : String(e)}`);
-  }
+    const errors: string[] = [];
+    let historyInserted = 0;
+    if (backfill || countHistory() < 40) {
+      try {
+        const bf = await backfillHistoricalBars();
+        historyInserted = bf.inserted;
+        errors.push(...bf.errors);
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e));
+      }
+    }
 
-  const result = resolveDueForecasts();
-  const calibration = computeCalibration(undefined, "live");
+    try {
+      bootstrapShortHorizonForecasts();
+    } catch (e) {
+      errors.push(`bootstrap: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
-  return NextResponse.json({
-    result,
-    historyInserted,
-    historyPoints: countHistory(),
-    pipeline: getResolvePipelineStatus(),
-    calibration,
-    errors,
+    const result = resolveDueForecasts();
+    const calibration = computeCalibration(undefined, "live");
+
+    return NextResponse.json({
+      result,
+      historyInserted,
+      historyPoints: countHistory(),
+      pipeline: getResolvePipelineStatus(),
+      calibration,
+      errors,
+    });
   });
 }

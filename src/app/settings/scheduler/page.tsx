@@ -63,9 +63,9 @@ export default function SchedulerSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled }),
       });
-      const j = await r.json();
+      const j = await r.json().catch(() => ({}));
       if (!r.ok) {
-        setMsg(j.error || "Toggle failed");
+        setMsg(j.error || `Toggle failed (HTTP ${r.status})`);
         return;
       }
       setStatus(j);
@@ -80,7 +80,11 @@ export default function SchedulerSettingsPage() {
     setMsg("Running scheduler tick…");
     try {
       const r = await fetch("/api/scheduler/tick", { method: "POST" });
-      const j = await r.json();
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setMsg(`Tick not run: ${j.error || `HTTP ${r.status}`}`);
+        return;
+      }
       setMsg(
         `${j.noteworthy ? "⚠ NOTEWORTHY — " : ""}${j.summary || "Tick done"} (ran: ${(j.ran || []).join(", ") || "none"})`
       );

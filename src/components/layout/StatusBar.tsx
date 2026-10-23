@@ -75,7 +75,12 @@ export function StatusBar() {
     setMsg("Refreshing markets + events…");
     try {
       const r = await fetch("/api/refresh", { method: "POST" });
-      const j = await r.json();
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        // Job triggers need a server-side token (CALIBRA_JOB_TOKEN); the browser has none.
+        setMsg(`Refresh not run: ${j.error || `HTTP ${r.status}`}`);
+        return;
+      }
       setStatus(j.status ?? j.result);
       setMsg(
         j.result

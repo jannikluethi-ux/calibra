@@ -175,3 +175,12 @@ Rollback: `git checkout <previous commit>` and repeat the build, or stop prod an
 ### New routes
 `/crypto/high-risk`, `/crypto/methodology`, `/data-quality`, `/api/crypto/high-risk`; `/crypto/risk` now redirects (307) to
 `/crypto/high-risk` with its query preserved. Methodology: `docs/crypto-risk-methodology.md`.
+
+## Batch B2.1 — job-trigger auth (23 Oct 2026)
+- All job-trigger endpoints (POST tick/refresh/events/market/instruments sync/forecasts/forecasts resolve/scenarios/
+  risk/warnings/causal, PATCH scheduler/status) require `Authorization: Bearer $CALIBRA_JOB_TOKEN`; details in
+  docs/SCHEDULER.md "Job-trigger auth".
+- New env (documented, **not set in production by this change**): `CALIBRA_JOB_TOKEN` (≥ 32 chars, secret),
+  optional `CALIBRA_JOB_MIN_INTERVAL_S` (default 30). Without the token every trigger returns 503 (fail closed).
+- `scripts/ensure-prod.sh` and `scripts/uptime-check.sh` only use `GET /api/scheduler/status`; unaffected.
+- Takes effect only after an approved rebuild + restart of the production server.

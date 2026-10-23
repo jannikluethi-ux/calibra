@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { runGuardedJob } from "@/lib/security/job-guard";
 import { getWarnings, persistWarnings } from "@/lib/warnings/detect";
 import { ensureSeedData } from "@/lib/bootstrap/refresh";
 
@@ -9,6 +10,9 @@ export async function GET() {
   return NextResponse.json({ warnings: getWarnings() });
 }
 
-export async function POST() {
-  return NextResponse.json({ warnings: persistWarnings() });
+/** Job trigger — guarded: Bearer $CALIBRA_JOB_TOKEN (see lib/security/job-guard). */
+export async function POST(req: Request) {
+  return runGuardedJob(req, "warnings-persist", async () => {
+    return NextResponse.json({ warnings: persistWarnings() });
+  });
 }

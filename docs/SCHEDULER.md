@@ -18,17 +18,46 @@ All “session hours” and weekday/weekend logic use **Europe/Zurich**.
 ## API
 
 ```bash
-# Run due jobs now (external cron / manual)
-curl -X POST http://localhost:3456/api/scheduler/tick
+# Run due jobs now (external cron / manual). Needs the job token (see "Job-trigger auth").
+# While automation is disabled this returns 409 unless ?force=1 is added.
+curl -X POST -H "Authorization: Bearer $CALIBRA_JOB_TOKEN" http://localhost:3456/api/scheduler/tick
 
-# Status: next due, last runs, enable flag, Zurich clock
+# Status: next due, last runs, enable flag, Zurich clock (public, read-only)
 curl http://localhost:3456/api/scheduler/status
 
-# Soft disable / enable (persisted in SQLite meta)
+# Soft disable / enable (persisted in SQLite meta). Needs the job token.
 curl -X PATCH http://localhost:3456/api/scheduler/status \
+  -H "Authorization: Bearer $CALIBRA_JOB_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"enabled":false}'
 ```
+
+### Job-trigger auth (Batch B2.1, 23 Oct 2026)
+
+Every endpoint that starts a fetch / derive / maintenance job or flips the scheduler goes through
+`src/lib/security/job-guard.ts`:
+
+| Route | Method |
+|---|---|
+| `/api/scheduler/tick` | POST |
+| `/api/scheduler/status` | PATCH |
+| `/api/refresh` | POST |
+| `/api/events`, `/api/market`, `/api/instruments/sync` | POST (external fetches) |
+| `/api/forecasts/resolve` (may backfill Yahoo history), `/api/forecasts`, `/api/scenarios`, `/api/risk`, `/api/warnings`, `/api/causal` | POST |
+
+- Header `Authorization: Bearer <CALIBRA_JOB_TOKEN>`; constant-time compare (sha256 + `timingSafeEqual`).
+- **Fails closed**: env `CALIBRA_JOB_TOKEN` unset, blank or < 32 chars → `503`, nothing runs.
+  Missing / malformed header → `401`; wrong token → `403`.
+- While automation is disabled (`scheduler.enabled=0` or `CALIBRA_SCHEDULER=0`) POST triggers return `409`
+  unless `?force=1`. `PATCH /api/scheduler/status` is exempt (it is the switch).
+- In-process guard per job: one run at a time (`409`), and min interval between accepted runs
+  `CALIBRA_JOB_MIN_INTERVAL_S` (default 30; `0` disables) → `429` + `Retry-After`.
+- The browser UI has no token: StatusBar **Refresh data** and `/settings/scheduler` Enable/Disable/Run tick
+  show the server's refusal message. Use curl with the token for manual runs.
+- Not implemented: localhost-only filtering (app-router handlers do not see the peer address; forwarded headers
+  are spoofable). To restrict exposure, bind the server to loopback (`next start -H 127.0.0.1`) — a deploy change.
+- Generate the token out of band (e.g. `openssl rand -hex 32`) and put it only in the server's environment;
+  never commit it. Code changes take effect only after an approved rebuild + restart.
 
 ### Tick response shape
 
@@ -58,7 +87,7 @@ A second tick within the interval window should **skip** recently-run jobs (idem
 |-----------|--------|
 | Default | **On** (dev and prod) when env unset |
 | `CALIBRA_SCHEDULER=0` | Hard-disable auto-loop (restart required). Unset or `=1` to allow. |
-| UI `/settings/scheduler` or `PATCH … {enabled:false}` | Soft-disable (SQLite `scheduler.enabled`). Auto-loop no-ops; `POST /api/scheduler/tick` still runs due jobs. |
+| UI `/settings/scheduler` or `PATCH … {enabled:false}` (token required) | Soft-disable (SQLite `scheduler.enabled`). Auto-loop no-ops; `POST /api/scheduler/tick` is refused (409) unless `?force=1`. |
 
 ## Boot
 
@@ -76,4 +105,4 @@ A second tick within the interval window should **skip** recently-run jobs (idem
 
 ## Manual full refresh
 
-`POST /api/refresh` remains “run everything now” (markets + optional thin history backfill + events + derive). Unchanged for the StatusBar **Refresh data** button.
+`POST /api/refresh` remains “run everything now” (markets + optional thin history backfill + events + derive). Since B2.1 it requires the job token, so the StatusBar **Refresh data** button shows the refusal instead of running it.

@@ -41,7 +41,7 @@ Shown on `/login` and `/pricing` for local demos only.
 - Persistence in **SQLite** at `data/gfi.db` (gitignored; created at runtime)
 - In-app **scheduler** (Europe/Zurich session hours): markets, events, derive, maintenance — default on; disable with `CALIBRA_SCHEDULER=0`
 
-Manual full refresh: Status bar **Refresh data**, or `POST /api/refresh`.
+Manual full refresh: `POST /api/refresh` with `Authorization: Bearer $CALIBRA_JOB_TOKEN` (see docs/SCHEDULER.md, "Job-trigger auth"). Without a configured token all job-trigger endpoints refuse (503).
 
 ## Docs
 

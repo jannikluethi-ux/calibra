@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { runGuardedJob } from "@/lib/security/job-guard";
 import { latestSyncRun } from "@/lib/instruments/store";
 import { runInstrumentSync } from "@/lib/instruments/sync";
 
@@ -16,8 +17,11 @@ export async function GET() {
   return NextResponse.json({ sync: { ...row, detail } });
 }
 
-export async function POST() {
-  const summary = await runInstrumentSync();
-  const status = summary.status === "error" && summary.error === "sync already running" ? 409 : 200;
-  return NextResponse.json(summary, { status });
+/** Job trigger — guarded: Bearer $CALIBRA_JOB_TOKEN (see lib/security/job-guard). */
+export async function POST(req: Request) {
+  return runGuardedJob(req, "instrument-sync", async () => {
+    const summary = await runInstrumentSync();
+    const status = summary.status === "error" && summary.error === "sync already running" ? 409 : 200;
+    return NextResponse.json(summary, { status });
+  });
 }
