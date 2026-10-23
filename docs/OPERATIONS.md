@@ -106,7 +106,13 @@ Outbox (routines deliver; box cannot message chat):
 ```
 scripts/notify-outbox.sh list-pending [--json]
 scripts/notify-outbox.sh mark-delivered <ID> <MSGREF>    # after chat delivery confirmed; appended to notify-outbox.delivered.jsonl
+scripts/notify-outbox.sh void <ID> --reason <REASON>     # retire an obsolete undelivered entry; appended to notify-outbox.voided.jsonl
+scripts/notify-outbox.sh list-voided [--json]
 ```
+Void: reason required; repeat void is a no-op (exit 0, first record kept); delivered/unknown ids refused (exit 1).
+Voided entries never appear in `list-pending`, and `mark-delivered` refuses them. Entry lines are never rewritten.
+Routines must read pending entries only via `list-pending` (the raw `"delivered": false` field in notify-outbox.jsonl
+is not updated by delivery or void). Tests: `bash tests/test-notify-outbox-void.sh`.
 Routine contract once enabled: run the check/heartbeat, then `list-pending --json`, deliver each `message`, then
 `mark-delivered`. Deliver from the outbox only (not also from the JSON `notify` field) to avoid duplicates.
 
