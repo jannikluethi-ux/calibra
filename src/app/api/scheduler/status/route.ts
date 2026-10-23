@@ -6,10 +6,13 @@ import { startScheduler } from "@/lib/scheduler/boot";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/scheduler/status — next due, last runs, enabled flag */
+/**
+ * GET /api/scheduler/status — next due, last runs, enabled flag.
+ * Read-only (B2.2): no seeding, does not (re-)arm the in-process loop (that happens at boot in
+ * src/instrumentation.ts or via the token-guarded PATCH/tick). Also used as the health probe by
+ * scripts/ensure-prod.sh and scripts/uptime-check.sh.
+ */
 export async function GET() {
-  ensureSeedData();
-  startScheduler();
   return NextResponse.json(getSchedulerStatus());
 }
 

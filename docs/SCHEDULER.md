@@ -91,7 +91,13 @@ A second tick within the interval window should **skip** recently-run jobs (idem
 
 ## Boot
 
-`src/instrumentation.ts` starts the interval on Node server boot. Hitting `/api/scheduler/status` or `/tick` also ensures the loop is alive (HMR-safe).
+`src/instrumentation.ts` starts the interval on Node server boot. The token-guarded `POST /tick` and `PATCH … {enabled:true}` also ensure the loop is alive (HMR-safe).
+
+Since B2.2 (23 Oct 2026) `GET /api/scheduler/status` and `GET /api/refresh` are **read-only**: no seed upserts, no
+dedupe cleanup, no `dataQuality` default, no `startScheduler()` re-arm, no jobs. They return 200 on an empty/unseeded
+DB (zero counts, `dataQuality: "insufficient"`). Seeding happens only in authorised `POST /api/refresh`,
+`POST /api/scheduler/tick`, `PATCH /api/scheduler/status` or `npm run seed` (`scripts/seed.ts`, added in B2.2 — the npm script previously pointed at a missing file). (Opening the DB in a new process still
+runs idempotent schema migrations once — see `src/lib/db/index.ts`.)
 
 ## Files
 

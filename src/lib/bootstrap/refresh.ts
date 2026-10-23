@@ -409,8 +409,12 @@ export function ensureSeedData() {
   if (!getMeta("dataQuality")) setMeta("dataQuality", "demo");
 }
 
+/**
+ * Data status snapshot. Read-only (B2.2): no seeding — callers that need seed data
+ * (POST /api/refresh, scheduler tick, `npm run seed`) call ensureSeedData() themselves.
+ * Works on an empty / unseeded DB (zero counts, dataQuality "insufficient").
+ */
 export function getStatus() {
-  ensureSeedData();
   const pipeline = getResolvePipelineStatus();
   return {
     lastMarketUpdate: getMeta("lastMarketUpdate"),

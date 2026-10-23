@@ -5,8 +5,8 @@ import { fullRefresh, getStatus, ensureSeedData } from "@/lib/bootstrap/refresh"
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
+/** GET /api/refresh — data status for the StatusBar. Read-only (B2.2): no seeding, no jobs. */
 export async function GET() {
-  ensureSeedData();
   return NextResponse.json({ status: getStatus() });
 }
 
