@@ -85,7 +85,7 @@ export default function LoginPage() {
         </p>
         <DisclaimerStrip />
       </Panel>
-      <Panel title="Local demo credentials">
+      <Panel title="Local demo credentials (only if provisioned: CALIBRA_DEMO_USERS=1 npm run provision:demo-users)">
         <ul className="space-y-1 text-2xs font-mono">
           {DEMO_CREDENTIALS.map((d) => (
             <li key={d.email} className="border border-terminal-border/50 rounded p-2 bg-terminal-surface">

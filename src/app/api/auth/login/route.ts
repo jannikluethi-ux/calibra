@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { authenticateUser, ensureDemoUsers } from "@/lib/auth/users";
+import { authenticateUser } from "@/lib/auth/users";
 import { createSession, sessionCookieOptions } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  ensureDemoUsers();
   const body = await req.json().catch(() => ({}));
   const email = String(body.email || "");
   const password = String(body.password || "");

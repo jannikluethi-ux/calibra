@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { ensureDemoUsers } from "@/lib/auth/users";
 import { addWatchlistItem, getWatchlist, removeWatchlistItem, watchlistItems } from "@/lib/instruments/store";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  ensureDemoUsers();
   const user = getSessionUser();
   if (!user) return NextResponse.json({ error: "Login required" }, { status: 401 });
   const wl = getWatchlist(user.id, params.id);
@@ -15,7 +13,6 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 }
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  ensureDemoUsers();
   const user = getSessionUser();
   if (!user) return NextResponse.json({ error: "Login required" }, { status: 401 });
   const wl = getWatchlist(user.id, params.id);
@@ -29,7 +26,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 }
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  ensureDemoUsers();
   const user = getSessionUser();
   if (!user) return NextResponse.json({ error: "Login required" }, { status: 401 });
   const wl = getWatchlist(user.id, params.id);

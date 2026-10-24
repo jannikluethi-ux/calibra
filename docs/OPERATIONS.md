@@ -184,3 +184,22 @@ Rollback: `git checkout <previous commit>` and repeat the build, or stop prod an
   optional `CALIBRA_JOB_MIN_INTERVAL_S` (default 30). Without the token every trigger returns 503 (fail closed).
 - `scripts/ensure-prod.sh` and `scripts/uptime-check.sh` only use `GET /api/scheduler/status`; unaffected.
 - Takes effect only after an approved rebuild + restart of the production server.
+
+## B2 get-fix — read-only GET routes and pages (24 Oct 2026, committed, NOT deployed)
+
+Every GET API route and server page is read-only: no table creation, seeding, provisioning, job, provider call,
+timer or file write on a request. Guarded by `tests/unit/readonly-routes-{empty,populated}.test.ts` (all GET
+routes and pages, empty and populated throwaway DBs, repeated requests, with/without valid/expired sessions).
+
+### Schema step (versioned)
+All DDL lives in pure schema modules applied once per DB open by `src/lib/db/schema.ts`
+(`PRAGMA user_version`, `SCHEMA_VERSION = 1`). An up-to-date DB gets zero writes on open. The first open of an
+existing (user_version 0) DB after deploy applies `CREATE ... IF NOT EXISTS` / additive `ALTER` once, in one
+transaction. Any DDL change must bump `SCHEMA_VERSION`; `tests/unit/schema-version.test.ts` pins the schema.
+
+### Auth data hygiene
+- Demo accounts are never created or re-hashed on a request. Explicit, insert-only, opt-in:
+  `CALIBRA_DEMO_USERS=1 npm run provision:demo-users`.
+- Session lookup is read-only. Expired sessions resolve to "logged out" but their rows are **not** deleted on a
+  request. Cleanup (`DELETE FROM sessions WHERE expires_at < now`) is deferred to a separately approved
+  maintenance job; until then expired rows accumulate harmlessly (indexed by `idx_sessions_expires`).

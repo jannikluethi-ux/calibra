@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { getDb } from "../db";
-import { ensureDemoUsers, getUserById, type UserRecord } from "./users";
+import { getUserById, type UserRecord } from "./users";
 import type { PlanId } from "../billing/plans";
 import { getPlan, planAtLeast } from "../billing/plans";
 
@@ -22,17 +22,18 @@ export function destroySession(token: string) {
   getDb().prepare("DELETE FROM sessions WHERE token = ?").run(token);
 }
 
+/**
+ * Read-only session lookup (B2 get-fix rec. 2/7): no demo provisioning, no writes. An expired session simply
+ * resolves to null; its row is left in place. Expired-session cleanup is deferred to a separately approved
+ * maintenance job (docs/OPERATIONS.md, "Auth data hygiene") and is never done on a request.
+ */
 export function getUserFromToken(token: string | undefined | null): UserRecord | null {
   if (!token) return null;
-  ensureDemoUsers();
   const row = getDb()
     .prepare("SELECT user_id, expires_at FROM sessions WHERE token = ?")
     .get(token) as { user_id: string; expires_at: string } | undefined;
   if (!row) return null;
-  if (new Date(row.expires_at).getTime() < Date.now()) {
-    destroySession(token);
-    return null;
-  }
+  if (!(new Date(row.expires_at).getTime() >= Date.now())) return null; // expired or unparsable
   return getUserById(row.user_id);
 }
 

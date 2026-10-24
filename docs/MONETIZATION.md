@@ -161,7 +161,13 @@ Instrument in product analytics later; for this foundation, surface counts in ac
 | `pro@calibra.local` | `calibra-pro-demo` | Pro |
 | `free@calibra.local` | `calibra-free-demo` | Free |
 
-Shown on `/login` and `/pricing` for local demos only.
+Demo accounts are **not** created automatically (no request path provisions or re-hashes them). Create them explicitly, insert-only, on a local/demo DB:
+
+```bash
+CALIBRA_DEMO_USERS=1 npm run provision:demo-users
+```
+
+Shown on `/login` and `/pricing` for local demos only; they work only after provisioning.
 
 ---
 

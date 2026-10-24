@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { ensureDemoUsers } from "@/lib/auth/users";
 import { getSessionUser } from "@/lib/auth/session";
 import { getPlan } from "@/lib/billing/plans";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  ensureDemoUsers();
   const user = getSessionUser();
   if (!user) {
     return NextResponse.json({ user: null });

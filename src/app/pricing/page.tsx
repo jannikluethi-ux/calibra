@@ -131,7 +131,7 @@ export default function PricingPage() {
         </Panel>
       )}
 
-      <Panel title="Local demo credentials">
+      <Panel title="Local demo credentials (only if provisioned: CALIBRA_DEMO_USERS=1 npm run provision:demo-users)">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-2xs font-mono">
           {DEMO_CREDENTIALS.map((d) => (
             <div key={d.email} className="border border-terminal-border rounded p-2 bg-terminal-surface">

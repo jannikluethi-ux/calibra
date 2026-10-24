@@ -4,9 +4,7 @@
  */
 export const KNOWN_WRITERS: Record<"empty" | "populated", Record<string, string>> = {
   empty: {
-    "GET /api/account/api-keys": "demo users provisioned/re-hashed",
     "GET /api/alerts": "seeding (country upsert), seed data",
-    "GET /api/auth/me": "demo users provisioned/re-hashed",
     "GET /api/causal": "seeding (country upsert), persists causal_graph when empty",
     "GET /api/countries": "seeding (country upsert)",
     "GET /api/crypto/high-risk": "source seeding",
@@ -21,8 +19,6 @@ export const KNOWN_WRITERS: Record<"empty" | "populated", Record<string, string>
     "GET /api/risk": "seeding (country upsert)",
     "GET /api/scenarios": "seeding (country upsert)",
     "GET /api/warnings": "seeding (country upsert), persists warnings when empty",
-    "GET /api/watchlists/[id]/items": "demo users provisioned/re-hashed",
-    "GET /api/watchlists": "demo users provisioned/re-hashed",
     "PAGE /assets/[symbol]/page": "seeding (country upsert)",
     "PAGE /assets/page": "seeding (country upsert)",
     "PAGE /countries/[code]/page": "seeding (country upsert)",
@@ -38,9 +34,7 @@ export const KNOWN_WRITERS: Record<"empty" | "populated", Record<string, string>
     "PAGE /warnings/page": "seeding (country upsert)",
   },
   populated: {
-    "GET /api/account/api-keys": "demo users provisioned/re-hashed",
     "GET /api/alerts": "seeding (country upsert)",
-    "GET /api/auth/me": "demo users provisioned/re-hashed",
     "GET /api/causal": "seeding (country upsert)",
     "GET /api/countries": "seeding (country upsert)",
     "GET /api/digest": "seeding (country upsert)",
@@ -55,8 +49,6 @@ export const KNOWN_WRITERS: Record<"empty" | "populated", Record<string, string>
     "GET /api/risk": "seeding (country upsert)",
     "GET /api/scenarios": "seeding (country upsert)",
     "GET /api/warnings": "seeding (country upsert)",
-    "GET /api/watchlists/[id]/items": "demo users provisioned/re-hashed",
-    "GET /api/watchlists": "demo users provisioned/re-hashed",
     "PAGE /assets/[symbol]/page": "seeding (country upsert)",
     "PAGE /assets/page": "seeding (country upsert)",
     "PAGE /countries/[code]/page": "seeding (country upsert)",

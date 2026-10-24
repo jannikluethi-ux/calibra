@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { ensureDemoUsers } from "@/lib/auth/users";
 import { createApiKey, listApiKeys, revokeApiKey } from "@/lib/api-keys/store";
 import { getPlan } from "@/lib/billing/plans";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  ensureDemoUsers();
   const user = getSessionUser();
   if (!user) return NextResponse.json({ error: "Login required" }, { status: 401 });
   const plan = getPlan(user.plan);
@@ -23,7 +21,6 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  ensureDemoUsers();
   const user = getSessionUser();
   if (!user) return NextResponse.json({ error: "Login required" }, { status: 401 });
   const body = await req.json().catch(() => ({}));

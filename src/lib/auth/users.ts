@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { getDb } from "../db";
 import { hashPassword, verifyPassword } from "./password";
-import { DEMO_CREDENTIALS, type PlanId } from "../billing/plans";
+import type { PlanId } from "../billing/plans";
 
 export interface UserRecord {
   id: string;
@@ -32,34 +32,6 @@ function rowToUser(row: UserRow): UserRecord {
 }
 
 
-export function ensureDemoUsers() {
-  const db = getDb();
-  const find = db.prepare("SELECT id FROM users WHERE email = ? COLLATE NOCASE");
-  const insert = db.prepare(
-    `INSERT INTO users(id, email, password_hash, plan, display_name, created_at)
-     VALUES(?, ?, ?, ?, ?, ?)`
-  );
-  for (const demo of DEMO_CREDENTIALS) {
-    const existing = find.get(demo.email) as { id: string } | undefined;
-    if (existing) {
-      // Keep existing plan (demo checkout may have upgraded); refresh password only
-      db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(
-        hashPassword(demo.password),
-        existing.id
-      );
-      continue;
-    }
-    insert.run(
-      randomUUID(),
-      demo.email.toLowerCase(),
-      hashPassword(demo.password),
-      demo.plan,
-      demo.plan === "pro" ? "Demo Pro" : "Demo Free",
-      new Date().toISOString()
-    );
-  }
-}
-
 export function createUser(email: string, password: string, plan: PlanId = "free"): UserRecord {
   const normalized = email.trim().toLowerCase();
   if (!normalized || !normalized.includes("@")) {
@@ -80,8 +52,8 @@ export function createUser(email: string, password: string, plan: PlanId = "free
   return { id, email: normalized, plan, createdAt, displayName: null };
 }
 
+/** Read-only credential check. Demo users are never provisioned here (see scripts/provision-demo-users.ts). */
 export function authenticateUser(email: string, password: string): UserRecord | null {
-  ensureDemoUsers();
   const row = getDb()
     .prepare("SELECT * FROM users WHERE email = ? COLLATE NOCASE")
     .get(email.trim().toLowerCase()) as UserRow | undefined;
