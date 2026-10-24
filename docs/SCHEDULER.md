@@ -89,6 +89,13 @@ A second tick within the interval window should **skip** recently-run jobs (idem
 | `CALIBRA_SCHEDULER=1` (or `true`/`on`) | Opt in: arm the auto-loop at boot (restart required). Unset, `0` or anything else = off; guarded triggers then answer 409 unless `?force=1`, and `PATCH {enabled:true}` answers 409. |
 | UI `/settings/scheduler` or `PATCH … {enabled:false}` (token required) | Soft-disable (SQLite `scheduler.enabled`). Auto-loop no-ops; `POST /api/scheduler/tick` is refused (409) unless `?force=1`. |
 
+### How monitoring reads the status (B2.3)
+`GET /api/scheduler/status` (read-only from 6f9d484) reports `enabled` (env allow AND soft flag) and `started`
+(tick loop running in this process). `scripts/uptime-check.sh` treats a stale `lastTick` as a scheduler warning only
+when both are true; `enabled=false` (current production: `scheduler.enabled=0`) or `started=false` is idle by design
+and never alerts. A disabled tick returns before writing `scheduler.lastTick`, so its age is meaningless then.
+See OPERATIONS.md "B2.3 — monitoring state model".
+
 ## Boot
 
 `src/instrumentation.ts` arms the interval on Node server boot **only when `CALIBRA_SCHEDULER=1`**. The token-guarded

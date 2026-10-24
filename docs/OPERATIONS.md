@@ -100,7 +100,7 @@ scripts/monitor-loop.sh stop     # stops loop, removes enable flag (boot-hook wi
 * Loop flags `heartbeat_routine_stale` in the outbox if `.heartbeat-routine-last` (written by every monitor-heartbeat run)
   is > 40 min old; `heartbeat_routine_recovered` when it resumes.
 * `monitor-heartbeat.sh` kinds: normal, monitor_stale, heartbeat_recovery, loop_dead (loop enabled but pid dead or
-  heartbeat file > 5 min old), loop_recovered.
+  heartbeat file > 5 min old, monotonic since B2.3), loop_recovered.
 
 Outbox (routines deliver; box cannot message chat):
 ```
@@ -124,6 +124,31 @@ Uses <dir>/uptime-state.json, .heartbeat-dedupe.json, notify-outbox-test.jsonl, 
 Threshold: keep HEARTBEAT_STALE_MIN 25 while the routine is the only caller; 20 is justified once the loop runs
 (15 min cadence + 5 min slack vs loop lateness < 2 s).
 Tests: `bash tests/test-monitor-loop.sh`.
+
+## B2.3 — monitoring state model (24 Oct 2026, committed, NOT deployed / not running)
+Full model, derivations and evidence: /workspace/calibra-B2.3-monitoring-20261024T105343/state-model.md.
+Each uptime check classifies three independent axes (also in uptime-state.json schema 3 and the JSON output):
+* `app_state` UP | APP_DOWN | RECOVERED. **Only this axis creates DOWN/RECOVERED.** DOWN = root or
+  /api/scheduler/status not HTTP 200 (incl. connection error/timeout), a 200 that is not a JSON object, or CRASHLOOP.
+* `scheduler_state` FRESH | STALE | IDLE_DISABLED | IDLE_NOT_STARTED | UNKNOWN | UNVERIFIED_RESUME | NO_DATA.
+  lastTick staleness (> `UPTIME_TICK_STALE_MIN` 30) is judged only when status reports `enabled` AND `started`
+  (read-only status from 6f9d484). A disabled-by-design or not-started scheduler (or a pre-B2.2 build without those
+  fields) never alerts. Real staleness -> `scheduler_stale` once / `scheduler_resumed` (warning kinds, not down/recovery).
+* `observation` FIRST | ON_TIME | DELAYED | HOST_PAUSED | REBOOTED | GAP. Pause = wall gap − monotonic
+  (/proc/uptime) gap ≥ `UPTIME_PAUSE_TOL_S` 10 within one boot_id. The first check after a pause or reboot reports a
+  stale tick as UNVERIFIED_RESUME and the next check judges it (resume grace = one check, ≥ one 60 s tick).
+  GAP (`heartbeat` notify) uses the monotonic gap > `UPTIME_STALE_MIN` 20. DELAYED = start > `UPTIME_DELAY_TOL_S` 60 s
+  after `UPTIME_SLOT_EPOCH` (passed by the loop) and not explained by a pause; recorded only.
+* RECOVERED only after a DOWN with `down_class=app` (or a legacy non-tick DOWN). A legacy tick-only DOWN clears with
+  transition `CLEARED` and no notification. Voided outbox entries stay excluded (`list-pending`, `mark-delivered`).
+* monitor-heartbeat: `monitor_stale` (20 min) and `loop_dead` (5 min) on monotonic age; across a reboot
+  min(wall, uptime); wall-only staleness = observation HOST_PAUSED, no alert; loop heartbeat from an older boot = dead.
+* monitor-loop: logs `host pause ~Ns detected`, heartbeat JSON gains mono_s/boot_id/last_pause_s/last_pause_epoch,
+  slots inside a pause are `MISSED-PAUSED`; heartbeat-routine staleness (40 min) is monotonic and fully suppressed
+  while `$UPTIME_DIR/ROUTINES_PAUSED` exists.
+* **Do not run any checks against a build older than 6f9d484**: the old GET /api/scheduler/status has side effects.
+* Test clocks: `UPTIME_NOW_EPOCH/UPTIME_MONO_S/UPTIME_BOOT_ID`, `HEARTBEAT_NOW_EPOCH/HEARTBEAT_MONO_S/HEARTBEAT_BOOT_ID`,
+  `MONITOR_CLOCK_CMD`. Tests: `tests/test-monitor-states.sh`, `tests/test-monitor-pause.sh` (temp dirs, offline).
 
 ## Batch 1 additions (17 Oct 2026)
 
