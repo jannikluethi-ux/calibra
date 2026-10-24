@@ -8,7 +8,10 @@ ok() { PASS=$((PASS+1)); echo "PASS: $*"; }; ko() { FAIL=$((FAIL+1)); echo "FAIL
 check() { local d="$1"; shift; if "$@"; then ok "$d"; else ko "$d"; fi; }
 jf() { python3 -c "import json,sys;d=json.loads(sys.argv[1]);print(d$2)" "$1"; }
 free_port() { python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1])'; }
-livesum() { [ -d "$LIVE" ] && (cd "$LIVE" && sha256sum uptime-log.csv uptime-state.json .heartbeat-dedupe.json 2>/dev/null) | sha256sum; }
+# B2.3: guard covers every live monitor/outbox file (incl. voided sidecar, loop heartbeat/log, flags) + dir listing
+livesum() { [ -d "$LIVE" ] && (cd "$LIVE" && sha256sum uptime-log.csv uptime-state.json uptime-transitions.jsonl .heartbeat-dedupe.json \
+  notify-outbox.jsonl notify-outbox.delivered.jsonl notify-outbox.voided.jsonl scheduler-runs.csv monitor-loop.heartbeat.json \
+  monitor-loop.log .heartbeat-routine-last .monitor-loop.last-slot 2>/dev/null; ls -la) | sha256sum; }
 L0="$(livesum)"
 W="$(mktemp -d)"; P="$(free_port)"; echo up >"$W/mode"
 python3 "$REPO/tests/mock_calibra.py" "$P" "$W/mode" & MOCK=$!
@@ -70,12 +73,19 @@ check "enable flag created" test -f "$W/s/MONITOR_LOOP_ENABLED"
 p1=$(cat "$W/s/monitor-loop.pid"); "$REPO/scripts/monitor-loop.sh" --loop 2>/dev/null; check "second --loop exits (flock), pid unchanged" test "$(cat "$W/s/monitor-loop.pid")" = "$p1"
 "$REPO/scripts/monitor-loop.sh" stop; ! "$REPO/scripts/monitor-loop.sh" status >/dev/null; check "stopped + flag removed" bash -c "[ $? -eq 0 ] && [ ! -f $W/s/MONITOR_LOOP_ENABLED ]"
 echo "== boot-hook autostarts loop only when enabled"
+# B2.3 hardening: the hook runs against a stub CALIBRA_HOME whose ensure-prod.sh only records that it was called,
+# so even if the mock port were not listening the real server could never be launched on the repo .next/DB.
+H="$W/home"; mkdir -p "$H/scripts"
+for f in "$REPO"/scripts/*; do [ "$(basename "$f")" = ensure-prod.sh ] || ln -s "$f" "$H/scripts/"; done
+printf '#!/usr/bin/env bash\necho "$(date +%%s) $*" >>"%s/ensure-prod-stub-called"\n' "$W" >"$H/scripts/ensure-prod.sh"; chmod +x "$H/scripts/ensure-prod.sh"
 touch "$W/s/MONITOR_LOOP_ENABLED"
-CALIBRA_HOME="$REPO" CALIBRA_PORT="$P" CALIBRA_STATE_DIR="$W/s/sd" bash --norc --noprofile -c ". $REPO/scripts/boot-hook.sh"; sleep 1
+CALIBRA_HOME="$H" CALIBRA_PORT="$P" CALIBRA_STATE_DIR="$W/s/sd" CALIBRA_RESTORE_STATUS=none bash --norc --noprofile -c ". $H/scripts/boot-hook.sh"; sleep 1
 check "boot-hook started loop" "$REPO/scripts/monitor-loop.sh" status
 "$REPO/scripts/monitor-loop.sh" stop >/dev/null
-CALIBRA_HOME="$REPO" CALIBRA_PORT="$P" CALIBRA_STATE_DIR="$W/s/sd" bash --norc --noprofile -c ". $REPO/scripts/boot-hook.sh"; sleep 1
+CALIBRA_HOME="$H" CALIBRA_PORT="$P" CALIBRA_STATE_DIR="$W/s/sd" CALIBRA_RESTORE_STATUS=none bash --norc --noprofile -c ". $H/scripts/boot-hook.sh"; sleep 1
 check "boot-hook does not start loop when disabled" bash -c "! '$REPO/scripts/monitor-loop.sh' status >/dev/null"
+check "mock port listening -> stub ensure-prod never called" test ! -e "$W/ensure-prod-stub-called"
+check "hook never targeted the real port 3456" bash -c "[ '$P' != 3456 ]"
 unset MONITOR_DIR MONITOR_CHECK_CMD MONITOR_PERIOD_S
 
 echo "== recent-check guard (no duplicate rows) + outbox from uptime-check"
