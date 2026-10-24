@@ -110,8 +110,9 @@ o=$(HEARTBEAT_TEST=1 HEARTBEAT_STATE_DIR="$LIVE" "$REPO/scripts/monitor-heartbea
 check "test mode refuses live dir" bash -c "[ $rc -eq 2 ] && echo '$o' | grep -q refuses"
 check "test mode requires dir" bash -c "! HEARTBEAT_TEST=1 '$REPO/scripts/monitor-heartbeat.sh' >/dev/null"
 T="$W/hbt"; mkdir -p "$T"; cp "$U/uptime-state.json" "$T/"
-HT() { HEARTBEAT_TEST=1 HEARTBEAT_STATE_DIR="$T" HEARTBEAT_NOW_EPOCH="$1" "$REPO/scripts/monitor-heartbeat.sh"; }
-NOW=$(date +%s)
+NOW=$(date +%s); MONO0=$(cut -d' ' -f1 /proc/uptime)
+# fake clock advances wall AND monotonic time together (a running box); pause cases are in test-monitor-pause.sh
+HT() { HEARTBEAT_TEST=1 HEARTBEAT_STATE_DIR="$T" HEARTBEAT_NOW_EPOCH="$1" HEARTBEAT_MONO_S="$(python3 -c "print($MONO0+$1-$NOW)")" "$REPO/scripts/monitor-heartbeat.sh"; }
 o=$(HT $NOW); check "fresh -> normal" test "$(jf "$o" '["kind"]')" = normal
 o=$(HT $((NOW+25*60))); echo "$o"; check "stale -> heartbeat/monitor_stale [TEST]" bash -c "[ '$(jf "$o" '["kind"]')' = monitor_stale ] && grep -q '\[TEST\] Calibra heartbeat' '$T/notify-outbox-test.jsonl'"
 o=$(HT $((NOW+30*60))); check "stale again -> deduped" test "$(jf "$o" '["notify"]')" = none

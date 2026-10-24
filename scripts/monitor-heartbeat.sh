@@ -15,7 +15,14 @@
 # TEST MODE: HEARTBEAT_TEST=1 HEARTBEAT_STATE_DIR=<isolated dir> -> identical detection, but state, loop files,
 #   dedupe and outbox (notify-outbox-test.jsonl) all come from that dir, messages tagged [TEST].
 #   Refuses to run against the live dir. Never touches live state.
-# Env: HEARTBEAT_NOW_EPOCH (tests), HEARTBEAT_STALE_MIN, HEARTBEAT_LOOP_STALE_MIN.
+# Env: HEARTBEAT_NOW_EPOCH / HEARTBEAT_MONO_S / HEARTBEAT_BOOT_ID (test clocks), HEARTBEAT_STALE_MIN,
+#   HEARTBEAT_LOOP_STALE_MIN.
+# B2.3 pause awareness: ages are measured on the monotonic clock (/proc/uptime, which does not advance while the
+#   box/VM is paused) whenever the recorded state carries mono_s + the same boot_id (uptime-state.json schema 3:
+#   last_check_mono_s/last_check_boot_id; loop heartbeat: mono_s/boot_id). Across a reboot the age is capped at the
+#   current uptime; legacy state without monotonic fields falls back to wall-clock age. A wall-clock age over the
+#   limit with a monotonic age within it is reported as observation=HOST_PAUSED and never alerts. A loop pid from a
+#   previous boot is treated as dead (pids are reused). .heartbeat-routine-last = "epoch mono_s boot_id".
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 LIVE="/workspace/calibra-stabilization"
@@ -41,10 +48,26 @@ S = os.path.join(U, "uptime-state.json"); D = os.path.join(U, ".heartbeat-dedupe
 lim = float(E.get("HEARTBEAT_STALE_MIN", "20")); llim = float(E.get("HEARTBEAT_LOOP_STALE_MIN", "5"))
 nowe = float(E.get("HEARTBEAT_NOW_EPOCH", time.time()))
 now = datetime.fromtimestamp(nowe, timezone.utc).astimezone()
+def _r(path, d):
+    try: return open(path).read().strip()
+    except Exception: return d
+mono = float(E.get("HEARTBEAT_MONO_S") or _r("/proc/uptime", "0").split()[0])
+boot = E.get("HEARTBEAT_BOOT_ID") or _r("/proc/sys/kernel/random/boot_id", "unknown")
+def ages(wall_epoch, m, b):
+    # -> (age_min judged, wall_age_min, basis)
+    w = (nowe - wall_epoch) / 60
+    try: m = float(m)
+    except (TypeError, ValueError): m = None
+    if m is not None and b == boot: return max(0.0, (mono - m) / 60), w, "monotonic"
+    if b and b != boot: return min(w, mono / 60), w, "rebooted"
+    return w, w, "wall"
 try: st = json.load(open(S)); last = st.get("last_check_at") or st.get("lastCheck")
 except Exception: st, last = {}, None
 lt = datetime.fromisoformat(last.replace("Z", "+00:00")) if last else None
-age = (now - lt).total_seconds()/60 if lt else None
+age = wall_age = basis = None; observation = "NORMAL"
+if lt:
+    age, wall_age, basis = ages(float(st.get("last_check_epoch") or lt.timestamp()), st.get("last_check_mono_s"), st.get("last_check_boot_id"))
+    if wall_age > lim and age <= lim: observation = "REBOOTED" if basis == "rebooted" else "HOST_PAUSED"
 try: dd = json.load(open(D))
 except Exception: dd = {}
 events = []
@@ -61,17 +84,21 @@ if loop_enabled:
     alive, why = True, "ok"
     try: pid = int(open(os.path.join(U, "monitor-loop.pid")).read().strip()); os.kill(pid, 0)
     except Exception: alive, why = False, "pid not running"
+    hbasis = None
     try:
-        hb = json.load(open(os.path.join(U, "monitor-loop.heartbeat.json"))); hage = (nowe - float(hb["updated_epoch"]))/60
-        if hage > llim: alive, why = False, f"loop heartbeat {hage:.1f} min old"
+        hb = json.load(open(os.path.join(U, "monitor-loop.heartbeat.json")))
+        hage, hwall, hbasis = ages(float(hb["updated_epoch"]), hb.get("mono_s"), hb.get("boot_id"))
+        if hbasis == "rebooted": alive, why = False, "loop heartbeat from a previous boot"
+        elif hage > llim: alive, why = False, f"loop heartbeat {hage:.1f} min old ({hbasis})"
+        elif hwall > llim and alive: observation = "HOST_PAUSED"
     except Exception: alive, why = False, "no loop heartbeat file"
-    loop = {"alive": alive, "detail": why}
+    loop = {"alive": alive, "detail": why, "basis": hbasis}
     if not alive and not dd.get("loop_dead_notified"):
         events.append(("heartbeat", "loop_dead", f"box monitor loop not running ({why})")); dd["loop_dead_notified"] = True
     elif alive and dd.get("loop_dead_notified"):
         events.append(("recovery", "loop_recovered", "box monitor loop running again")); dd["loop_dead_notified"] = False
 tmp = D + f".tmp.{os.getpid()}"; json.dump(dd, open(tmp, "w"), indent=2); os.replace(tmp, D)
-open(os.path.join(U, ".heartbeat-routine-last"), "w").write(f"{int(nowe)}\n")
+open(os.path.join(U, ".heartbeat-routine-last"), "w").write(f"{int(nowe)} {mono:.2f} {boot}\n")
 tag = "[TEST] " if TEST else ""
 outboxed = []
 if events and (TEST or loop_enabled):
@@ -84,6 +111,7 @@ if events and (TEST or loop_enabled):
 notify, kind = (events[0][0], events[0][1]) if events else ("none", "normal")
 print(json.dumps({"ok": True, "test": TEST, "notify": notify, "kind": kind, "events": [{"notify": n, "kind": k, "message": tag + m} for n, k, m in events],
                   "now": now.isoformat(), "last_check_at": last, "age_min": round(age, 1) if age is not None else None,
-                  "stale_threshold_min": lim, "status": st.get("status"), "loop_enabled": loop_enabled, "loop": loop,
+                  "stale_threshold_min": lim, "age_basis": basis,
+                  "wall_age_min": round(wall_age, 1) if wall_age is not None else None, "observation": observation, "status": st.get("status"), "loop_enabled": loop_enabled, "loop": loop,
                   "outbox_ids": outboxed}, separators=(",", ":")))
 PY

@@ -13,13 +13,22 @@
 #   monitor-loop.heartbeat.json, monitor-loop.pid, monitor-loop.log, .monitor-loop.last-slot,
 #   .heartbeat-routine-last (written by monitor-heartbeat.sh), .monitor-loop.hbroutine-flag
 # Env (tests): MONITOR_PERIOD_S 900, MONITOR_PHASE_S 420, MONITOR_CHECK_TIMEOUT 60, MONITOR_CHECK_CMD,
-#   MONITOR_MAX_RUNS (exit after N slots), MONITOR_HBROUTINE_STALE_MIN 40, MONITOR_TICK_S 60 (heartbeat refresh).
+#   MONITOR_MAX_RUNS (exit after N slots), MONITOR_HBROUTINE_STALE_MIN 40, MONITOR_TICK_S 60 (heartbeat refresh),
+#   MONITOR_PAUSE_TOL_S 10, MONITOR_CLOCK_CMD (tests: prints "wall_epoch mono_s boot_id").
+# B2.3 pause awareness: every iteration compares the wall-clock gap with the monotonic (/proc/uptime) gap since the
+#   previous iteration (same boot_id). A difference >= MONITOR_PAUSE_TOL_S means the whole box was paused (the VM
+#   does not advance /proc/uptime while suspended). The pause is logged and recorded in the heartbeat JSON
+#   (last_pause_s/last_pause_epoch); slots that fell inside it are logged as MISSED-PAUSED instead of MISSED.
+#   The heartbeat JSON also carries mono_s + boot_id so monitor-heartbeat.sh judges loop age on monotonic time.
+#   Each check receives UPTIME_SLOT_EPOCH so uptime-check.sh can report DELAYED vs ON_TIME.
+#   .heartbeat-routine-last = "epoch [mono_s boot_id]"; its age is monotonic when the boot matches.
+#   If $DIR/ROUTINES_PAUSED exists the heartbeat routine is paused by design: no heartbeat_routine_stale alert.
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 DIR="${MONITOR_DIR:-${UPTIME_DIR:-/workspace/calibra-stabilization}}"; export UPTIME_DIR="$DIR"
 P="${MONITOR_PERIOD_S:-900}"; PH="${MONITOR_PHASE_S:-420}"; TO="${MONITOR_CHECK_TIMEOUT:-60}"
 CMD="${MONITOR_CHECK_CMD:-$REPO/scripts/uptime-check.sh}"
-HBSTALE="${MONITOR_HBROUTINE_STALE_MIN:-40}"; TICK="${MONITOR_TICK_S:-60}"
+HBSTALE="${MONITOR_HBROUTINE_STALE_MIN:-40}"; TICK="${MONITOR_TICK_S:-60}"; PTOL="${MONITOR_PAUSE_TOL_S:-10}"
 RUNS="$DIR/scheduler-runs.csv"; PIDF="$DIR/monitor-loop.pid"; HB="$DIR/monitor-loop.heartbeat.json"
 LOGF="$DIR/monitor-loop.log"; LAST="$DIR/.monitor-loop.last-slot"; HBR="$DIR/.heartbeat-routine-last"
 FLAG="$DIR/.monitor-loop.hbroutine-flag"; EN="$DIR/MONITOR_LOOP_ENABLED"
@@ -29,14 +38,29 @@ log() { echo "$(date -Is) [monitor-loop $$] $*" >>"$LOGF"; }
 running() { [ -f "$PIDF" ] && kill -0 "$(cat "$PIDF" 2>/dev/null)" 2>/dev/null; }
 outbox() { OUTBOX_SOURCE=monitor-loop UPTIME_DIR="$DIR" "$REPO/scripts/notify-outbox.sh" add "$@" >/dev/null 2>&1 || log "outbox add failed: $*"; }
 row() { [ -s "$RUNS" ] || echo "expected_ts,actual_start,end,duration_s,lateness_s,exit,result,notify" >>"$RUNS"; echo "$*" >>"$RUNS"; }
-beat() { printf '{"pid":%s,"updated_at":"%s","updated_epoch":%s,"last_slot":"%s","period_s":%s,"phase_s":%s}\n' \
-  "$$" "$(date -Is)" "$(date +%s)" "$(cat "$LAST" 2>/dev/null)" "$P" "$PH" >"$HB.tmp" && mv "$HB.tmp" "$HB"; }
+clock() { if [ -n "${MONITOR_CLOCK_CMD:-}" ]; then $MONITOR_CLOCK_CMD
+  else echo "$(date +%s) $(cut -d' ' -f1 /proc/uptime) $(cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo unknown)"; fi; }
+W=; MO=; BO=; PW=; PM=; PB=; PAUSED=0; LPS=null; LPE=null
+observe() {  # sets W MO BO (now) and PAUSED (seconds the box was suspended since the previous observation)
+  read -r W MO BO <<<"$(clock)"; PAUSED=0
+  if [ -n "$PW" ] && [ "$BO" = "$PB" ]; then
+    PAUSED=$(awk -v w="$W" -v pw="$PW" -v m="$MO" -v pm="$PM" 'BEGIN{p=(w-pw)-(m-pm); printf "%d", (p>0?p:0)}')
+    if [ "$PAUSED" -ge "$PTOL" ]; then LPS=$PAUSED; LPE=$W; log "host pause ~${PAUSED}s detected (wall gap minus monotonic gap)"; else PAUSED=0; fi
+  fi
+  PW=$W; PM=$MO; PB=$BO
+}
+beat() { printf '{"pid":%s,"updated_at":"%s","updated_epoch":%s,"mono_s":%s,"boot_id":"%s","last_slot":"%s","period_s":%s,"phase_s":%s,"last_pause_s":%s,"last_pause_epoch":%s}\n' \
+  "$$" "$(iso "$W")" "$W" "$MO" "$BO" "$(cat "$LAST" 2>/dev/null)" "$P" "$PH" "$LPS" "$LPE" >"$HB.tmp" && mv "$HB.tmp" "$HB"; }
 
 check_hb_routine() {  # flag (once per episode) if the heartbeat routine has not run for > HBSTALE min
-  local now last age started
-  now=$(date +%s); last=$(cat "$HBR" 2>/dev/null | head -c 20); started=$(cat "$DIR/.monitor-loop.started" 2>/dev/null || echo "$now")
-  [[ "$last" =~ ^[0-9]+$ ]] || last="$started"
-  age=$(( (now - last) / 60 ))
+  local now last lm lb age started
+  now=$W; read -r last lm lb 2>/dev/null <"$HBR"; started=$(cat "$DIR/.monitor-loop.started" 2>/dev/null || echo "$now")
+  if [ -f "$DIR/ROUTINES_PAUSED" ]; then  # routines paused by design: staleness is expected, never alert
+    [ -f "$FLAG" ] && { rm -f "$FLAG"; log "heartbeat routine flag cleared silently (ROUTINES_PAUSED)"; }; return 0; fi
+  [[ "${last:-}" =~ ^[0-9]+$ ]] || { last="$started"; lm=; lb=; }
+  # age in minutes: monotonic if same boot; across a reboot at most the current uptime; legacy file -> wall clock
+  age=$(awk -v n="$now" -v l="$last" -v m="$MO" -v lm="${lm:-}" -v b="$BO" -v lb="${lb:-}" 'BEGIN{
+    a=n-l; if (lm!="" && lb==b) a=m-lm; else if (lb!="" && lb!=b && m<a) a=m; printf "%d", a/60}')
   if [ "$age" -gt "$HBSTALE" ]; then
     if [ ! -f "$FLAG" ]; then
       outbox heartbeat_routine_stale "Calibra monitor: heartbeat routine has not run for ${age} min (last $(iso "$last"))" heartbeat_routine_stale
@@ -51,7 +75,7 @@ check_hb_routine() {  # flag (once per episode) if the heartbeat routine has not
 run_slot() {  # $1 = slot epoch
   local s="$1" t0 t1 out ec res nt
   t0=$(date +%s.%N)
-  out="$(UPTIME_CALLER=loop UPTIME_DIR="$DIR" timeout -k 5 "$TO" "$CMD" 2>>"$LOGF")"; ec=$?
+  out="$(UPTIME_CALLER=loop UPTIME_DIR="$DIR" UPTIME_SLOT_EPOCH="$s" timeout -k 5 "$TO" "$CMD" 2>>"$LOGF")"; ec=$?
   t1=$(date +%s.%N)
   if [ "$ec" = 124 ] || [ "$ec" = 137 ]; then res=TIMEOUT; nt=none
   else
@@ -70,18 +94,19 @@ loop() {
   echo $$ >"$PIDF"; date +%s >"$DIR/.monitor-loop.started"
   trap 'log "stopping (signal)"; rm -f "$PIDF"; exit 0' TERM INT
   log "loop started period=${P}s phase=${PH}s timeout=${TO}s cmd=$CMD"
-  local n=0 now target last s
+  local n=0 now target last s miss
   while :; do
-    now=$(date +%s); target=$(( (now - PH) / P * P + PH ))
-    last=$(cat "$LAST" 2>/dev/null)
+    observe; now=$W; target=$(( (now - PH) / P * P + PH ))
+    [ "$PAUSED" -gt 0 ] && beat   # record the resume immediately (before a check that may take up to TO s)
+    last=$(cat "$LAST" 2>/dev/null); miss=MISSED; [ "$PAUSED" -gt 0 ] && miss=MISSED-PAUSED
     if ! [[ "$last" =~ ^[0-9]+$ ]]; then echo "$target" >"$LAST"; last=$target   # first start: wait for next slot
     elif [ "$target" -gt "$last" ]; then
-      for (( s=last+P; s<target; s+=P )); do row "$(iso "$s"),,,,,,MISSED,none"; log "slot $(iso "$s") MISSED"; done
+      for (( s=last+P; s<target; s+=P )); do row "$(iso "$s"),,,,,,$miss,none"; log "slot $(iso "$s") $miss"; done
       run_slot "$target"; echo "$target" >"$LAST"; n=$((n+1))
       [ -n "${MONITOR_MAX_RUNS:-}" ] && [ "$n" -ge "$MONITOR_MAX_RUNS" ] && { log "max runs reached"; rm -f "$PIDF"; exit 0; }
     fi
     check_hb_routine; beat
-    now=$(date +%s); s=$(( $(cat "$LAST") + P - now )); [ "$s" -lt 1 ] && s=1; [ "$s" -gt "$TICK" ] && s=$TICK
+    now=$(date +%s); [ -n "${MONITOR_CLOCK_CMD:-}" ] && now=$(clock | cut -d' ' -f1); s=$(( $(cat "$LAST") + P - now )); [ "$s" -lt 1 ] && s=1; [ "$s" -gt "$TICK" ] && s=$TICK
     sleep "$s" & wait $!
   done
 }
