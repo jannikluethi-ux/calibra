@@ -93,5 +93,16 @@ export function ensureInstrumentTables(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_instr_quote_status ON instruments(quote_status);
     CREATE INDEX IF NOT EXISTS idx_watchlists_user ON watchlists(user_id);
     CREATE INDEX IF NOT EXISTS idx_sync_runs_started ON sync_runs(started_at DESC);
+
+    -- Price-series cache (schema v2). Written only by the guarded prefetch job; GET serves from here only.
+    CREATE TABLE IF NOT EXISTS instrument_series_cache (
+      instrument_id TEXT NOT NULL,
+      range TEXT NOT NULL,
+      fetched_at TEXT NOT NULL,
+      source TEXT,
+      note TEXT NOT NULL,
+      points_json TEXT NOT NULL,
+      PRIMARY KEY (instrument_id, range)
+    );
   `);
 }

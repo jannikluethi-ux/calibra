@@ -42,7 +42,7 @@ function unavailable(range: string, note: string): SeriesResult {
   return { range, supported: false, points: [], source: null, note };
 }
 
-async function yahooSeries(symbol: string, range: SeriesRange): Promise<SeriesResult> {
+async function yahooSeries(symbol: string, range: SeriesRange, signal?: AbortSignal): Promise<SeriesResult> {
   const spec = YAHOO_RANGE[range];
   if (!spec) {
     return unavailable(range, "Data unavailable");
@@ -54,6 +54,7 @@ async function yahooSeries(symbol: string, range: SeriesRange): Promise<SeriesRe
       "User-Agent": "Mozilla/5.0 (compatible; GFIAgent/0.1; research)",
     },
     cache: "no-store",
+    signal,
   });
   if (!res.ok) return unavailable(range, "Data unavailable");
   const text = await res.text();
@@ -83,13 +84,14 @@ async function yahooSeries(symbol: string, range: SeriesRange): Promise<SeriesRe
   };
 }
 
-async function coingeckoSeries(providerId: string, range: SeriesRange): Promise<SeriesResult> {
+async function coingeckoSeries(providerId: string, range: SeriesRange, signal?: AbortSignal): Promise<SeriesResult> {
   const days = CG_DAYS[range];
   if (!days) return unavailable(range, "Data unavailable");
   const url = `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(providerId)}/market_chart?vs_currency=usd&days=${days}`;
   const res = await fetch(url, {
     headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0 (compatible; Calibra/0.1; research)" },
     cache: "no-store",
+    signal,
   });
   if (res.status === 429 || !res.ok) return unavailable(range, "Data unavailable");
   const json = (await res.json()) as { prices?: [number, number][] };
@@ -112,15 +114,18 @@ async function coingeckoSeries(providerId: string, range: SeriesRange): Promise<
   };
 }
 
-export async function loadSeries(inst: InstrumentRow, range: string): Promise<SeriesResult> {
+/**
+ * Provider fetch. NOT for request paths: only the guarded prefetch (series-cache.ts prefetchSeries) calls this.
+ */
+export async function loadSeries(inst: InstrumentRow, range: string, signal?: AbortSignal): Promise<SeriesResult> {
   const r = (SERIES_RANGES as readonly string[]).includes(range) ? (range as SeriesRange) : null;
   if (!r) return unavailable(range, "Data unavailable");
   if (inst.data_source === "coingecko") {
-    return coingeckoSeries(inst.provider_id, r);
+    return coingeckoSeries(inst.provider_id, r, signal);
   }
   if (inst.data_source === "yahoo") {
     const symbol = inst.raw_symbol_key || inst.provider_id;
-    return yahooSeries(symbol, r);
+    return yahooSeries(symbol, r, signal);
   }
   return unavailable(r, "Data unavailable");
 }

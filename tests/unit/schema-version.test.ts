@@ -30,6 +30,7 @@ function scratch(name: string) {
 /** Update together with SCHEMA_VERSION whenever any DDL changes (and document the migration). */
 const EXPECTED: Record<number, string> = {
   1: "d055db50a4dbe395181ea224cefa62b127492cb26cc775c5194c36488a026169",
+  2: "5796f5d330bb4c4bfdbde7428f7f92a2772ad76a2860d54b5ee03d1179bc2486", // + instrument_series_cache
 };
 
 test("fresh DB: getDb() applies the full schema once and stamps user_version", async () => {
@@ -41,7 +42,7 @@ test("fresh DB: getDb() applies the full schema once and stamps user_version", a
   for (const t of [
     "meta", "events", "forecasts", "scenarios", "countries", "instruments", "users", "sessions", "api_keys", "api_rate_limits",
     "sources", "source_observations", "canonical_fields", "crypto_market_snapshots", "event_assessments", "source_health",
-    "source_fetch_log", "data_quality_flags", "instrument_evidence", "ux_scenarios_event_id",
+    "source_fetch_log", "data_quality_flags", "instrument_evidence", "ux_scenarios_event_id", "instrument_series_cache",
   ]) {
     assert.ok(names.has(t), `schema step creates ${t}`);
   }
@@ -80,6 +81,21 @@ test("legacy DB (user_version 0, partial schema, data present): upgraded in plac
   assert.deepEqual(f, { id: "f1", status: "open" }, "additive ALTER keeps rows");
   assert.equal((db.prepare("SELECT COUNT(*) c FROM scenarios").get() as { c: number }).c, 1);
   assert.ok(db.prepare(`SELECT 1 FROM sqlite_master WHERE name = 'ux_scenarios_event_id'`).get());
+});
+
+test("v1 DB is upgraded to v2 in place: only instrument_series_cache is added, data untouched", async () => {
+  const { runSchemaStep, applySchema } = await import("../../src/lib/db/schema");
+  const db = scratch("v1.db");
+  applySchema(db);
+  db.exec("DROP TABLE instrument_series_cache");
+  db.pragma("user_version = 1");
+  db.prepare("INSERT INTO meta (key, value) VALUES ('k', 'v')").run();
+  assert.equal(fingerprint(db), EXPECTED[1], "a v1 schema is exactly the v1 fingerprint");
+  const r = runSchemaStep(db);
+  assert.deepEqual(r, { from: 1, to: 2, applied: true });
+  assert.equal(fingerprint(db), EXPECTED[2]);
+  assert.deepEqual(db.prepare("SELECT * FROM meta").all(), [{ key: "k", value: "v" }]);
+  assert.equal(runSchemaStep(db).applied, false);
 });
 
 test("DB that already has the scenarios unique index: the legacy duplicate cleanup never runs", async () => {

@@ -4,7 +4,5 @@
  */
 export const KNOWN_WRITERS: Record<"empty" | "populated", Record<string, string>> = {
   empty: {},
-  populated: {
-    "GET /api/instruments/[id]/series": "live provider fetch on GET",
-  },
+  populated: {},
 };

@@ -197,6 +197,19 @@ All DDL lives in pure schema modules applied once per DB open by `src/lib/db/sch
 existing (user_version 0) DB after deploy applies `CREATE ... IF NOT EXISTS` / additive `ALTER` once, in one
 transaction. Any DDL change must bump `SCHEMA_VERSION`; `tests/unit/schema-version.test.ts` pins the schema.
 
+Schema history: v1 = baseline; v2 = + `instrument_series_cache` (additive `CREATE TABLE IF NOT EXISTS`; a v1 DB is
+upgraded in place on first open, existing rows untouched).
+
+### Price series (DB-only GET, guarded prefetch)
+- `GET /api/instruments/[id]/series?range=` serves `instrument_series_cache` only and never contacts Yahoo/CoinGecko.
+  A cache miss returns `supported:false` with note "Awaiting first prefetch" (the instrument page shows "Data unavailable").
+- The cache is filled only by `POST /api/instruments/[id]/series?range=` (Bearer `$CALIBRA_JOB_TOKEN`, refused while
+  automation is disabled unless `?force=1`, single-flight + min interval per instrument/range via job-guard).
+  Within `CALIBRA_SERIES_TTL_S` (default 900) the cached series is returned without a provider call; calls to the
+  same provider closer than `CALIBRA_SERIES_PROVIDER_GAP_MS` (default 2000) get 429; the provider call times out after
+  `CALIBRA_SERIES_TIMEOUT_MS` (default 10000). Timeout / provider error / empty result -> **503**, cache untouched.
+- No scheduler job prefetches series yet; until an operator (or a later approved job) prefetches, instrument charts are empty.
+
 ### Auth data hygiene
 - Demo accounts are never created or re-hashed on a request. Explicit, insert-only, opt-in:
   `CALIBRA_DEMO_USERS=1 npm run provision:demo-users`.

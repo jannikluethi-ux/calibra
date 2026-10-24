@@ -16,7 +16,11 @@ import { ensureHealthTables } from "../sources/health-schema";
 import { ensureAuthTables } from "../auth/schema";
 import { ensureFlagTable } from "../quality/schema";
 
-export const SCHEMA_VERSION = 1;
+/**
+ * History: 1 = B2 get-fix baseline (all pre-existing DDL).
+ *          2 = + instrument_series_cache (DB-only series GET, guarded prefetch).
+ */
+export const SCHEMA_VERSION = 2;
 
 export function getSchemaVersion(db: Database.Database): number {
   return (db.pragma("user_version", { simple: true }) as number) ?? 0;
