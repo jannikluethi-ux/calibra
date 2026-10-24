@@ -81,8 +81,12 @@ o="$("$REPO/scripts/uptime-check.sh")"; check "UP after gap -> notify=heartbeat"
 check "unexplained gap -> observation GAP" test "$(jf "$o" '["observation"]')" = "GAP"
 echo "== monitor-heartbeat.sh"
 NOW=$(date +%s)
-HB() { HEARTBEAT_NOW_EPOCH="$1" "$REPO/scripts/monitor-heartbeat.sh"; }
+# Fake clocks: wall and monotonic advance together (real elapsed time). Since B2.3 (3b24951) a wall-only jump
+# is a host pause, not staleness, so HB moves HEARTBEAT_MONO_S by the same offset as the wall clock.
+HB() { HEARTBEAT_NOW_EPOCH="$1" HEARTBEAT_MONO_S="$(awk -v u="$(cut -d' ' -f1 /proc/uptime)" -v d="$(( $1 - $(date +%s) ))" 'BEGIN{printf "%.2f", u+d}')" "$REPO/scripts/monitor-heartbeat.sh"; }
+HBP() { HEARTBEAT_NOW_EPOCH="$1" "$REPO/scripts/monitor-heartbeat.sh"; }   # wall-only advance = host pause
 o="$(HB "$NOW")"; echo "$o"; check "fresh -> none" test "$(jf "$o" '["notify"]')" = none
+o="$(HBP $((NOW+25*60)))"; echo "$o"; check "wall-only +25min (host pause) -> none, HOST_PAUSED" test "$(jf "$o" '["notify"]')/$(jf "$o" '["observation"]')" = none/HOST_PAUSED
 o="$(HB $((NOW+25*60)))"; echo "$o"; check "stale 25min -> heartbeat" test "$(jf "$o" '["notify"]')" = heartbeat
 o="$(HB $((NOW+40*60)))"; check "still stale -> deduped none" test "$(jf "$o" '["notify"]')" = none
 "$REPO/scripts/uptime-check.sh" >/dev/null
