@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { getDb } from "../db";
-import { ensureAuthTables, ensureDemoUsers, getUserById, type UserRecord } from "./users";
+import { ensureDemoUsers, getUserById, type UserRecord } from "./users";
 import type { PlanId } from "../billing/plans";
 import { getPlan, planAtLeast } from "../billing/plans";
 
@@ -9,7 +9,6 @@ export const SESSION_COOKIE = "calibra_session";
 const SESSION_DAYS = 14;
 
 export function createSession(userId: string): string {
-  ensureAuthTables();
   const token = randomBytes(32).toString("hex");
   const createdAt = new Date().toISOString();
   const expires = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -20,7 +19,6 @@ export function createSession(userId: string): string {
 }
 
 export function destroySession(token: string) {
-  ensureAuthTables();
   getDb().prepare("DELETE FROM sessions WHERE token = ?").run(token);
 }
 

@@ -1,7 +1,6 @@
 import { getDb } from "../../db";
 import { fetchJson } from "../http";
 import { appendObservation } from "../observations";
-import { ensureCryptoIntelTables } from "../../crypto/intel-schema";
 
 const URL = "https://api.llama.fi/protocols";
 
@@ -30,7 +29,6 @@ export async function runDefillama(): Promise<{ httpStatus: number | null; ok: b
   let withGecko = 0;
   let matched = 0;
   // Protocol id -> gecko_id map (used to attach DefiLlama hack records to instruments by CoinGecko id, never by ticker).
-  ensureCryptoIntelTables(db);
   const mapStmt = db.prepare(
     `INSERT INTO crypto_protocol_map (defillama_id, protocol_name, gecko_id, instrument_id, retrieved_at) VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(defillama_id) DO UPDATE SET protocol_name = excluded.protocol_name, gecko_id = excluded.gecko_id,

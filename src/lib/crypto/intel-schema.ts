@@ -3,12 +3,9 @@
  * incident records are append-only; crypto_risk_latest is a derived pointer table rebuilt by the scorer.
  */
 import type Database from "better-sqlite3";
-import { getDb } from "../db";
 
-let ready = false;
-
-export function ensureCryptoIntelTables(db: Database.Database = getDb()) {
-  if (ready && db === getDb()) return db;
+/** Pure DDL; applied only by the schema step (db/schema.ts). */
+export function ensureCryptoIntelTables(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS crypto_market_snapshots (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,6 +116,5 @@ export function ensureCryptoIntelTables(db: Database.Database = getDb()) {
       market_data_at TEXT
     );
   `);
-  ready = true;
   return db;
 }

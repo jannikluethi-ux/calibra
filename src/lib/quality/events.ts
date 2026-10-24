@@ -3,7 +3,6 @@
  * event-intelligence coverage. Read-only; computed from stored rows at request time.
  */
 import { getDb } from "../db";
-import { ensureIntelTables } from "../intel/schema";
 import { RSS_FEEDS } from "../ingestion/rss";
 
 export interface SourceFreshness {
@@ -53,7 +52,6 @@ function concentration(rows: { s: string; tier: number | null; n: number }[]) {
 
 export function computeEventMetrics(nowIso = new Date().toISOString()): EventMetrics {
   const db = getDb();
-  ensureIntelTables(db);
   const now = Date.parse(nowIso);
   const iso = (h: number) => new Date(now - h * 3600_000).toISOString();
   const per = db

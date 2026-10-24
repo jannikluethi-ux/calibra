@@ -9,8 +9,6 @@
 import { createHash } from "crypto";
 import type Database from "better-sqlite3";
 import { getDb } from "../db";
-import { ensureCryptoIntelTables } from "../crypto/intel-schema";
-import { ensureIntelTables } from "./schema";
 
 export const EVENT_FACTOR_VERSION = "crypto_event_factor_v1";
 export const RISK_EVENT_CATEGORIES = ["exploit", "depeg", "delisting", "regulatory_action", "unlock"] as const;
@@ -158,8 +156,6 @@ export interface CryptoEventRunResult {
 }
 
 export function runCryptoRiskEvents(nowIso = new Date().toISOString(), db: Database.Database = getDb()): CryptoEventRunResult {
-  ensureCryptoIntelTables(db);
-  ensureIntelTables(db);
   const records = collectRiskEvents(db, nowIso);
   const ins = db.prepare(`INSERT OR IGNORE INTO crypto_risk_event_log (id, instrument_id, category, occurred_at, link_basis, source, source_url, evidence_json, detected_at) VALUES (?,?,?,?,?,?,?,?,?)`);
   const lastF = db.prepare(`SELECT input_hash FROM crypto_event_factor_scores WHERE instrument_id = ? ORDER BY id DESC LIMIT 1`);
@@ -215,7 +211,6 @@ export function runCryptoRiskEvents(nowIso = new Date().toISOString(), db: Datab
 }
 
 export function latestEventFactor(instrumentId: string, db: Database.Database = getDb()) {
-  ensureIntelTables(db);
   const rows = db.prepare(`SELECT * FROM crypto_event_factor_scores WHERE instrument_id = ? ORDER BY id DESC`).all(instrumentId) as Record<string, unknown>[];
   const events = db.prepare(`SELECT * FROM crypto_risk_event_log WHERE instrument_id = ? ORDER BY occurred_at DESC LIMIT 25`).all(instrumentId) as Record<string, unknown>[];
   return {
@@ -228,7 +223,6 @@ export function latestEventFactor(instrumentId: string, db: Database.Database = 
 }
 
 export function outcomeLogSummary(db: Database.Database = getDb()) {
-  ensureIntelTables(db);
   const byKind = db.prepare(`SELECT kind, COUNT(*) AS n, MAX(observed_at) AS latest FROM crypto_outcome_log GROUP BY kind`).all() as { kind: string; n: number; latest: string }[];
   const recent = db.prepare(`SELECT id, kind, instrument_id, observed_at, logged_at, source FROM crypto_outcome_log ORDER BY observed_at DESC LIMIT 15`).all() as { id: string; kind: string; instrument_id: string; observed_at: string; logged_at: string; source: string }[];
   return { byKind, recent };

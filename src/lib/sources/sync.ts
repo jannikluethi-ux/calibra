@@ -3,7 +3,6 @@ import { recomputeCanonical } from "./consensus";
 import { setSourceStatus } from "./observations";
 import { prepareCryptoStore } from "./prepare";
 import { ADAPTERS, DISABLED_ADAPTER_IDS, type AdapterResult } from "./registry";
-import { ensureSourceTables } from "./schema";
 import { seedSources } from "./seeds";
 import { scoreQuotedCrypto } from "../crypto/risk";
 import { writeCoverageSnapshot } from "../crypto/coverage";
@@ -18,7 +17,6 @@ export interface SyncReport {
 
 export async function runCryptoSourceSync(): Promise<SyncReport> {
   const db = getDb();
-  ensureSourceTables(db);
   seedSources(db);
   prepareCryptoStore();
   const report: SyncReport = {

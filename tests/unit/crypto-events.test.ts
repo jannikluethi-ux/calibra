@@ -18,10 +18,8 @@ test("event factor levels follow documented windows", async () => {
 
 test("risk events, factor history and outcome log from stored data; ids only; below-peg only; exits need two complete syncs", async () => {
   const { getDb } = await import("../../src/lib/db");
-  const { ensureCryptoIntelTables } = await import("../../src/lib/crypto/intel-schema");
   const { runCryptoRiskEvents, latestEventFactor, outcomeLogSummary } = await import("../../src/lib/intel/crypto-events");
   const db = getDb();
-  ensureCryptoIntelTables(db);
   const inst = db.prepare(`INSERT INTO instruments (id, symbol, name, asset_type, provider_id, data_source, quote_status, first_seen_at) VALUES (?,?,?,?,?,?,?,?)`);
   for (const [id, sym, name] of [["crypto:coingecko:proto", "PRT", "Proto"], ["crypto:coingecko:usdx", "USDX", "X Dollar"], ["crypto:coingecko:susdx", "SUSDX", "Staked USD X"], ["crypto:coingecko:stale-usd", "SUSD", "Stale USD"], ["crypto:coingecko:a", "A", "A"], ["crypto:coingecko:b", "B", "B"]]) {
     inst.run(id, sym, name, "crypto", id.split(":")[2], "test", "live", NOW);

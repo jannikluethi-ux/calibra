@@ -8,12 +8,8 @@ const NOW = "2026-10-17T12:00:00.000Z";
 
 test("crypto news links use contract address or CoinGecko id only; tickers and names never link; legacy rows kept", async () => {
   const { getDb } = await import("../../src/lib/db");
-  const { ensureCryptoIntelTables } = await import("../../src/lib/crypto/intel-schema");
-  const { ensureSourceTables } = await import("../../src/lib/sources/schema");
   const { runRssLinks } = await import("../../src/lib/sources/adapters/rss-events");
   const db = getDb();
-  ensureSourceTables(db);
-  ensureCryptoIntelTables(db);
   const inst = db.prepare(`INSERT INTO instruments (id, symbol, name, asset_type, provider_id, data_source, quote_status, price, first_seen_at) VALUES (?,?,?,?,?,?,?,?,?)`);
   inst.run("crypto:coingecko:bitcoin", "BTC", "Bitcoin", "crypto", "bitcoin", "test", "live", 60000, NOW);
   inst.run("crypto:coingecko:tok", "TOKN", "Token Protocol", "crypto", "tok", "test", "live", 1, NOW);

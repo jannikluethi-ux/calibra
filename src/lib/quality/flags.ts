@@ -4,24 +4,8 @@
  */
 import { getDb } from "../db";
 
-export function ensureFlagTable() {
-  getDb().exec(`
-    CREATE TABLE IF NOT EXISTS data_quality_flags (
-      record_table TEXT NOT NULL,
-      record_id TEXT NOT NULL,
-      flag TEXT NOT NULL,
-      symbol TEXT,
-      reason TEXT NOT NULL,
-      flagged_at TEXT NOT NULL,
-      PRIMARY KEY (record_table, record_id, flag)
-    );
-    CREATE INDEX IF NOT EXISTS idx_dq_flags_symbol ON data_quality_flags(record_table, flag, symbol);
-  `);
-}
-
 /** Flag market_history rows with a non-positive price (e.g. DE10Y/BUND.DE price 0 since 2026-09-26). Idempotent. */
 export function flagInvalidHistoryPrices(nowIso = new Date().toISOString()): { flagged: number } {
-  ensureFlagTable();
   const r = getDb()
     .prepare(
       `INSERT OR IGNORE INTO data_quality_flags(record_table, record_id, flag, symbol, reason, flagged_at)

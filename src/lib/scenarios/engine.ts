@@ -2,7 +2,6 @@ import { randomUUID } from "crypto";
 import type { FinancialEvent, Scenario, ScenarioBranch } from "../types";
 import { getDb } from "../db";
 import { getEvents } from "../ingestion/rss";
-import { ensureIntelTables } from "../intel/schema";
 import { runEventIntelligence, writeScenarioSetsV2 } from "../intel/store";
 
 function branch(
@@ -285,7 +284,6 @@ function inferAssets(event: FinancialEvent): string[] {
  *  its keyword-based asset inference is not used for new rows. */
 export function rebuildScenariosFromEvents(limit = 12): Scenario[] {
   const db = getDb();
-  ensureIntelTables(db);
   // Make sure recent events are assessed (normally done by the derive step just before this).
   const recent = getEvents(60, { canonicalOnly: true });
   const has = db.prepare(`SELECT 1 FROM event_assessments WHERE event_id = ? LIMIT 1`);

@@ -15,7 +15,6 @@ import { recordAttempt, skipCheck } from "../sources/health";
 import { upsertInstruments } from "../instruments/store";
 import { marketRow, type CgMarketCoin } from "../instruments/sync";
 import { blockCoingecko, coingeckoBlocked } from "../sources/cg-guard";
-import { ensureCryptoIntelTables } from "./intel-schema";
 
 export const CG = "https://api.coingecko.com/api/v3";
 export const CATEGORY_SLUGS = ["stablecoins", "meme-token", "layer-1", "decentralized-finance-defi", "wrapped-tokens", "liquid-staking-tokens"];
@@ -43,7 +42,6 @@ export interface CryptoSyncReport {
 
 export async function runCryptoMarketSync(opts: CryptoSyncOptions = {}): Promise<CryptoSyncReport> {
   const db = prepareCryptoStore();
-  ensureCryptoIntelTables(db);
   const fetchJson = opts.fetchJson ?? defaultFetchJson;
   const now = opts.now ?? new Date();
   const nowIso = now.toISOString();

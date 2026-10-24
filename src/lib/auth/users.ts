@@ -31,56 +31,8 @@ function rowToUser(row: UserRow): UserRecord {
   };
 }
 
-export function ensureAuthTables() {
-  const db = getDb();
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      email TEXT NOT NULL UNIQUE COLLATE NOCASE,
-      password_hash TEXT NOT NULL,
-      plan TEXT NOT NULL DEFAULT 'free',
-      display_name TEXT,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS sessions (
-      token TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
-
-    CREATE TABLE IF NOT EXISTS api_keys (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      key_hash TEXT NOT NULL,
-      key_prefix TEXT NOT NULL,
-      plan TEXT NOT NULL,
-      name TEXT,
-      created_at TEXT NOT NULL,
-      last_used TEXT,
-      revoked INTEGER NOT NULL DEFAULT 0,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
-    CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(key_prefix);
-
-    CREATE TABLE IF NOT EXISTS api_rate_limits (
-      key_id TEXT NOT NULL,
-      window_start TEXT NOT NULL,
-      count INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (key_id, window_start)
-    );
-  `);
-}
 
 export function ensureDemoUsers() {
-  ensureAuthTables();
   const db = getDb();
   const find = db.prepare("SELECT id FROM users WHERE email = ? COLLATE NOCASE");
   const insert = db.prepare(
@@ -109,7 +61,6 @@ export function ensureDemoUsers() {
 }
 
 export function createUser(email: string, password: string, plan: PlanId = "free"): UserRecord {
-  ensureAuthTables();
   const normalized = email.trim().toLowerCase();
   if (!normalized || !normalized.includes("@")) {
     throw new Error("Invalid email");
@@ -140,13 +91,11 @@ export function authenticateUser(email: string, password: string): UserRecord | 
 }
 
 export function getUserById(id: string): UserRecord | null {
-  ensureAuthTables();
   const row = getDb().prepare("SELECT * FROM users WHERE id = ?").get(id) as UserRow | undefined;
   return row ? rowToUser(row) : null;
 }
 
 export function getUserByEmail(email: string): UserRecord | null {
-  ensureAuthTables();
   const row = getDb()
     .prepare("SELECT * FROM users WHERE email = ? COLLATE NOCASE")
     .get(email.trim().toLowerCase()) as UserRow | undefined;
@@ -154,7 +103,6 @@ export function getUserByEmail(email: string): UserRecord | null {
 }
 
 export function setUserPlan(userId: string, plan: PlanId): UserRecord | null {
-  ensureAuthTables();
   getDb().prepare("UPDATE users SET plan = ? WHERE id = ?").run(plan, userId);
   return getUserById(userId);
 }

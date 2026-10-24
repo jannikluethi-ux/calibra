@@ -5,7 +5,6 @@ import type Database from "better-sqlite3";
 import { getDb, getMeta, setMeta } from "../db";
 import type { FinancialEvent, Scenario } from "../types";
 import { getUniverseItem } from "../market/universe";
-import { ensureIntelTables } from "./schema";
 import { assessEvent, observedText, sourceIdOf, SOURCE_REGION, ASSESSMENT_VERSION, type EventAssessment } from "./assess";
 import { detectConflicts, type ConflictInput, type DetectedConflict, CONFLICT_VERSION } from "./conflicts";
 import { tagMechanisms, tagRegions, type RegionId } from "./mechanisms";
@@ -135,7 +134,6 @@ function rowToConflict(r: Record<string, unknown>): StoredConflict {
 }
 
 export function conflictsForEvents(ids: string[], db: Database.Database = getDb()): StoredConflict[] {
-  ensureIntelTables(db);
   if (!ids.length) return [];
   const ph = ids.map(() => "?").join(",");
   const rows = db.prepare(`SELECT * FROM event_conflicts WHERE event_a IN (${ph}) OR event_b IN (${ph}) ORDER BY detected_at DESC`).all(...ids, ...ids) as Record<string, unknown>[];
@@ -143,7 +141,6 @@ export function conflictsForEvents(ids: string[], db: Database.Database = getDb(
 }
 
 export function listConflicts(limit = 50, db: Database.Database = getDb()): StoredConflict[] {
-  ensureIntelTables(db);
   return (db.prepare(`SELECT * FROM event_conflicts ORDER BY detected_at DESC LIMIT ?`).all(limit) as Record<string, unknown>[]).map(rowToConflict);
 }
 
@@ -161,13 +158,11 @@ export interface StoredAssessment {
 }
 
 export function latestAssessment(eventId: string, db: Database.Database = getDb()): StoredAssessment | null {
-  ensureIntelTables(db);
   const r = db.prepare(`SELECT id, assessment_json FROM event_assessments WHERE event_id = ? ORDER BY id DESC LIMIT 1`).get(eventId) as { id: number; assessment_json: string } | undefined;
   return r ? { id: r.id, assessment: JSON.parse(r.assessment_json) } : null;
 }
 
 export function assessmentHistory(eventId: string, db: Database.Database = getDb()): { id: number; assessedAt: string; material: boolean; inputHash: string }[] {
-  ensureIntelTables(db);
   return (db.prepare(`SELECT id, assessed_at, material, input_hash FROM event_assessments WHERE event_id = ? ORDER BY id DESC`).all(eventId) as { id: number; assessed_at: string; material: number; input_hash: string }[]).map((r) => ({ id: r.id, assessedAt: r.assessed_at, material: r.material === 1, inputHash: r.input_hash }));
 }
 
@@ -187,7 +182,6 @@ export interface StoredMapping {
 }
 
 export function mappingsForAssessment(assessmentId: number, db: Database.Database = getDb()): StoredMapping[] {
-  ensureIntelTables(db);
   const rows = db.prepare(`SELECT * FROM event_instrument_mappings WHERE assessment_id = ? ORDER BY id`).all(assessmentId) as Record<string, unknown>[];
   return rows.map((r) => ({
     id: Number(r.id),
@@ -221,7 +215,6 @@ export interface IntelRunResult {
  */
 export function runEventIntelligence(opts: { sinceDays?: number; limit?: number; nowIso?: string } = {}): IntelRunResult {
   const db = getDb();
-  ensureIntelTables(db);
   const nowIso = opts.nowIso ?? new Date().toISOString();
   const since = new Date(Date.parse(nowIso) - (opts.sinceDays ?? 21) * 86400_000).toISOString();
   const events = loadEvents(db, since, opts.limit ?? 2000);
@@ -351,7 +344,6 @@ export function scenarioRowForEvent(eventId: string, db: Database.Database = get
  */
 export function writeScenarioSetsV2(events: FinancialEvent[], opts: { max?: number; nowIso?: string } = {}) {
   const db = getDb();
-  ensureIntelTables(db);
   const nowIso = opts.nowIso ?? new Date().toISOString();
   const max = opts.max ?? 15;
   const out: Scenario[] = [];
@@ -393,7 +385,6 @@ export function writeScenarioSetsV2(events: FinancialEvent[], opts: { max?: numb
 
 /** Per-event list badges: material flag, duplicate-group size/role, conflict count, scenario schema. */
 export function eventListBadges(ids: string[], db: Database.Database = getDb()) {
-  ensureIntelTables(db);
   const out = new Map<string, { material: boolean | null; groupSize: number; canonical: boolean; conflicts: number; scenario: "v2" | "pre-v2" | null }>();
   if (!ids.length) return out;
   const ph = ids.map(() => "?").join(",");

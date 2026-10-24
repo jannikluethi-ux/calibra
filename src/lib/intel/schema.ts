@@ -8,12 +8,9 @@
  *    the separate qualitative factor (history kept), and the outcome log used for later validation.
  */
 import type Database from "better-sqlite3";
-import { getDb } from "../db";
 
-let readyFor: Database.Database | null = null;
-
-export function ensureIntelTables(db: Database.Database = getDb()) {
-  if (readyFor === db) return db;
+/** Pure DDL; applied only by the schema step (db/schema.ts). */
+export function ensureIntelTables(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS event_assessments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,6 +106,5 @@ export function ensureIntelTables(db: Database.Database = getDb()) {
     );
     CREATE INDEX IF NOT EXISTS idx_col_kind ON crypto_outcome_log(kind, observed_at DESC);
   `);
-  readyFor = db;
   return db;
 }

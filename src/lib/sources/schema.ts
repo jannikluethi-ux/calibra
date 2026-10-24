@@ -96,7 +96,12 @@ export function ensureSourceTables(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_risk_total ON crypto_risk_assessments(total DESC);
     CREATE INDEX IF NOT EXISTS idx_risk_events_type ON crypto_risk_events(event_type);
 
-    DROP VIEW IF EXISTS instrument_evidence;
+  `);
+  ensureEvidenceView(db);
+}
+
+/** Latest-evidence view. Recreated only when its definition differs (no DDL on an up-to-date DB). */
+const EVIDENCE_VIEW_SQL = `
     CREATE VIEW instrument_evidence AS
     SELECT
       i.id AS instrument_id,
@@ -131,6 +136,16 @@ export function ensureSourceTables(db: Database.Database) {
     LEFT JOIN canonical_fields cf
       ON cf.instrument_id = i.id AND cf.field = 'price'
     LEFT JOIN crypto_risk_assessments r
-      ON r.instrument_id = i.id;
-  `);
+      ON r.instrument_id = i.id`;
+
+function normalizeSql(sql: string): string {
+  return sql.replace(/\s+/g, " ").trim().replace(/;$/, "");
+}
+
+export function ensureEvidenceView(db: Database.Database): void {
+  const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'view' AND name = 'instrument_evidence'`).get() as
+    | { sql: string }
+    | undefined;
+  if (row && normalizeSql(row.sql) === normalizeSql(EVIDENCE_VIEW_SQL)) return;
+  db.exec(`DROP VIEW IF EXISTS instrument_evidence; ${EVIDENCE_VIEW_SQL};`);
 }

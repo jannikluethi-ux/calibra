@@ -4,7 +4,6 @@
  */
 import { getDb, getMeta } from "../db";
 import { prepareCryptoStore } from "../sources/prepare";
-import { ensureCryptoIntelTables } from "./intel-schema";
 import { computeRisk, MODEL_VERSION, type RiskInputs, type RiskResult, type SecurityIncident, FACTORS, STALE_MARKET_DATA_H } from "./risk-v2";
 import { realizedVol, maxDrawdown, returnOver, returnCorrelation, type DailyPoint } from "./metrics";
 import { buildWhere, orderBy, PAGE_SIZE, type HighRiskQuery, STRUCTURAL_FACTOR_KEYS } from "./highrisk-query";
@@ -37,7 +36,6 @@ interface SnapRow {
 /** Archive legacy research_v1 rows into the append-only history (idempotent). */
 export function archiveV1Assessments(): number {
   const db = prepareCryptoStore();
-  ensureCryptoIntelTables(db);
   const r = db
     .prepare(
       `INSERT INTO crypto_risk_scores (instrument_id, model_version, computed_at, score, band, risk_type, confidence, confidence_label, high_risk, structural_keys, factors_json, flags_json, reasons_json, market_data_at)
@@ -67,7 +65,6 @@ function loadSeries(db: ReturnType<typeof getDb>): Map<string, DailyPoint[]> {
 
 export function buildAllInputs(nowIso: string): { inst: InstRow; inputs: RiskInputs }[] {
   const db = prepareCryptoStore();
-  ensureCryptoIntelTables(db);
   const insts = db
     .prepare(
       `SELECT id, symbol, name, provider_id, price, market_cap, volume_24h, circulating_supply, total_supply, max_supply, change_7d_pct, change_30d_pct, last_updated, rank
@@ -222,7 +219,6 @@ export interface HighRiskRow {
 
 export function listHighRisk(q: HighRiskQuery, nowIso = new Date().toISOString()) {
   const db = prepareCryptoStore();
-  ensureCryptoIntelTables(db);
   const { where, params } = buildWhere(q, nowIso, STALE_MARKET_DATA_H);
   const base = `FROM crypto_risk_latest l JOIN instruments i ON i.id = l.instrument_id ${where}`;
   const total = (db.prepare(`SELECT COUNT(*) AS c ${base}`).get(...params) as { c: number }).c;
@@ -247,7 +243,6 @@ export function listHighRisk(q: HighRiskQuery, nowIso = new Date().toISOString()
 /** Facets for the filter UI: only values that exist in scored data are offered. */
 export function highRiskFacets() {
   const db = prepareCryptoStore();
-  ensureCryptoIntelTables(db);
   const views = db.prepare(`SELECT risk_type, COUNT(*) AS c, SUM(high_risk) AS h FROM crypto_risk_latest GROUP BY risk_type`).all() as { risk_type: string; c: number; h: number }[];
   const bands = db.prepare(`SELECT band, COUNT(*) AS c FROM crypto_risk_latest GROUP BY band`).all() as { band: string; c: number }[];
   const categories = db
@@ -283,7 +278,6 @@ export interface RiskProfile {
 
 export function getRiskProfile(instrumentId: string, nowIso = new Date().toISOString()): RiskProfile {
   const db = prepareCryptoStore();
-  ensureCryptoIntelTables(db);
   const lat = db.prepare(`SELECT score_id, computed_at, market_data_at FROM crypto_risk_latest WHERE instrument_id = ?`).get(instrumentId) as
     | { score_id: number; computed_at: string; market_data_at: string | null }
     | undefined;

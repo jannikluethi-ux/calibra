@@ -6,7 +6,6 @@ import { Panel } from "@/components/ui/Panel";
 import { Badge, QualityBadge } from "@/components/ui/Badge";
 import { fmtTime } from "@/lib/format";
 import { assessmentHistory, conflictsForEvents, latestAssessment, mappingsForAssessment, scenarioRowForEvent } from "@/lib/intel/store";
-import { ensureIntelTables } from "@/lib/intel/schema";
 import { ScenarioV2View, PreV2Badge } from "@/components/intel/ScenarioV2View";
 import { ConflictCard } from "@/components/intel/ConflictCard";
 
@@ -39,7 +38,6 @@ function groupFor(eventId: string) {
 export default function EventDetailPage({ params }: { params: { id: string } }) {
   const e = getEvent(params.id);
   if (!e) notFound();
-  ensureIntelTables();
   const sa = latestAssessment(e.id);
   const a = sa?.assessment ?? null;
   const maps = sa ? mappingsForAssessment(sa.id) : [];

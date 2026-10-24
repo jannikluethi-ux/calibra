@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import { getDb } from "../db";
-import { ensureAuthTables, getUserById } from "../auth/users";
+import { getUserById } from "../auth/users";
 import { getPlan, type PlanId } from "../billing/plans";
 
 export interface ApiKeyMeta {
@@ -31,7 +31,6 @@ function generatePlaintext(): { plaintext: string; prefix: string } {
 }
 
 export function listApiKeys(userId: string): ApiKeyMeta[] {
-  ensureAuthTables();
   const rows = getDb()
     .prepare(
       `SELECT id, user_id, key_prefix, plan, name, created_at, last_used, revoked
@@ -60,7 +59,6 @@ export function listApiKeys(userId: string): ApiKeyMeta[] {
 }
 
 export function createApiKey(userId: string, name?: string): CreatedApiKey {
-  ensureAuthTables();
   const user = getUserById(userId);
   if (!user) throw new Error("User not found");
   const planDef = getPlan(user.plan);
@@ -95,7 +93,6 @@ export function createApiKey(userId: string, name?: string): CreatedApiKey {
 }
 
 export function revokeApiKey(userId: string, keyId: string): boolean {
-  ensureAuthTables();
   const r = getDb()
     .prepare("UPDATE api_keys SET revoked = 1 WHERE id = ? AND user_id = ?")
     .run(keyId, userId);
@@ -110,7 +107,6 @@ export interface ApiKeyAuthResult {
 }
 
 export function authenticateApiKey(rawKey: string): ApiKeyAuthResult | null {
-  ensureAuthTables();
   if (!rawKey || !rawKey.startsWith("calibra_")) return null;
   const hash = hashKey(rawKey);
   const row = getDb()
@@ -137,7 +133,6 @@ export function checkRateLimit(keyId: string, limitPerMinute: number): {
   remaining: number;
   limit: number;
 } {
-  ensureAuthTables();
   const windowStart = new Date();
   windowStart.setSeconds(0, 0);
   const ws = windowStart.toISOString();

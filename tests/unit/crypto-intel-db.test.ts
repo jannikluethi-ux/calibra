@@ -85,8 +85,6 @@ test("market sync writes snapshots, identity, categories, incidents and history 
   const { marketRow } = await import("../../src/lib/instruments/sync");
   upsertInstruments([marketRow({ ...coin("oldcoin", "old", "Old Coin"), last_updated: "2026-10-04T15:00:00.000Z" })], "2026-10-04T15:00:00.000Z");
   // protocol map (normally written by the DefiLlama protocols adapter)
-  const { ensureCryptoIntelTables } = await import("../../src/lib/crypto/intel-schema");
-  ensureCryptoIntelTables(db);
   db.prepare(`INSERT INTO crypto_protocol_map (defillama_id, protocol_name, gecko_id, instrument_id, retrieved_at) VALUES ('123','Tiny Protocol','tinycoin','crypto:coingecko:tinycoin',?)`).run(iso);
 
   const calls: string[] = [];
