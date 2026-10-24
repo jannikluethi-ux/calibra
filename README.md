@@ -45,7 +45,7 @@ Shown on `/login` and `/pricing` for local demos only; they work only after prov
 - **Yahoo Finance** public chart API → market snapshots / history (paced; demo fallback if rate-limited)
 - **Public RSS** (Fed/ECB/IMF/Reuters/CNBC, etc.) → event ingest + heuristic classification
 - Persistence in **SQLite** at `data/gfi.db` (gitignored; created at runtime)
-- In-app **scheduler** (Europe/Zurich session hours): markets, events, derive, maintenance — default on; disable with `CALIBRA_SCHEDULER=0`
+- In-app **scheduler** (Europe/Zurich session hours): markets, events, derive, maintenance — **opt-in**: off unless `CALIBRA_SCHEDULER=1` at boot (status reports `enabled` and `started` separately; see docs/SCHEDULER.md)
 
 Manual full refresh: `POST /api/refresh` with `Authorization: Bearer $CALIBRA_JOB_TOKEN` (see docs/SCHEDULER.md, "Job-trigger auth"). Without a configured token all job-trigger endpoints refuse (503).
 

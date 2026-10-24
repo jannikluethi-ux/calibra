@@ -2,7 +2,7 @@
  * In-process scheduler loop. Calls tick decision every ~60s while the Next
  * server is up. Does NOT pull Yahoo every 60s — only when jobs are due.
  *
- * Enable: default ON (dev & prod) unless CALIBRA_SCHEDULER=0.
+ * Opt-in (B2 get-fix): armed at boot only when CALIBRA_SCHEDULER=1 (default OFF in dev & prod).
  * Soft disable via meta / UI still respected inside runSchedulerTick.
  */
 import { isEnvSchedulerAllowed, runSchedulerTick } from "./runner";
@@ -20,13 +20,13 @@ export function startScheduler(): void {
   if (typeof globalThis === "undefined") return;
   if (globalThis.__calibraSchedulerStarted) return;
   if (!isEnvSchedulerAllowed()) {
-    console.info("[calibra-scheduler] disabled via CALIBRA_SCHEDULER=0");
+    console.info("[calibra-scheduler] not armed (opt-in: set CALIBRA_SCHEDULER=1 and restart)");
     return;
   }
 
   globalThis.__calibraSchedulerStarted = true;
   console.info(
-    `[calibra-scheduler] starting (interval ${TICK_MS / 1000}s). Disable with CALIBRA_SCHEDULER=0`
+    `[calibra-scheduler] starting (interval ${TICK_MS / 1000}s). Opt-in via CALIBRA_SCHEDULER=1; unset to disable`
   );
 
   // First tick after a short delay so boot isn't blocked by Yahoo

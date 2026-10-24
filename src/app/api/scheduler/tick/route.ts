@@ -12,7 +12,7 @@ export const maxDuration = 180;
  * Requires `Authorization: Bearer $CALIBRA_JOB_TOKEN` (see lib/security/job-guard).
  * While automation is disabled it is refused (409) unless `?force=1`; with force it
  * evaluates due jobs even though the soft toggle is off.
- * Auto-loop still respects CALIBRA_SCHEDULER=0 and UI toggle.
+ * Auto-loop is opt-in (CALIBRA_SCHEDULER=1) and respects the UI toggle.
  */
 export async function POST(req: Request) {
   return runGuardedJob(req, "scheduler-tick", async () => {

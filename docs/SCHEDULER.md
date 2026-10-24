@@ -48,7 +48,7 @@ Every endpoint that starts a fetch / derive / maintenance job or flips the sched
 - Header `Authorization: Bearer <CALIBRA_JOB_TOKEN>`; constant-time compare (sha256 + `timingSafeEqual`).
 - **Fails closed**: env `CALIBRA_JOB_TOKEN` unset, blank or < 32 chars → `503`, nothing runs.
   Missing / malformed header → `401`; wrong token → `403`.
-- While automation is disabled (`scheduler.enabled=0` or `CALIBRA_SCHEDULER=0`) POST triggers return `409`
+- While automation is disabled (`scheduler.enabled=0` or `CALIBRA_SCHEDULER` not set to `1`) POST triggers return `409`
   unless `?force=1`. `PATCH /api/scheduler/status` is exempt (it is the switch).
 - In-process guard per job: one run at a time (`409`), and min interval between accepted runs
   `CALIBRA_JOB_MIN_INTERVAL_S` (default 30; `0` disables) → `429` + `Retry-After`.
@@ -85,13 +85,17 @@ A second tick within the interval window should **skip** recently-run jobs (idem
 
 | Mechanism | Effect |
 |-----------|--------|
-| Default | **On** (dev and prod) when env unset |
-| `CALIBRA_SCHEDULER=0` | Hard-disable auto-loop (restart required). Unset or `=1` to allow. |
+| Default | **Off** (dev and prod) when env unset — opt-in since the B2 get-fix (24 Oct 2026) |
+| `CALIBRA_SCHEDULER=1` (or `true`/`on`) | Opt in: arm the auto-loop at boot (restart required). Unset, `0` or anything else = off; guarded triggers then answer 409 unless `?force=1`, and `PATCH {enabled:true}` answers 409. |
 | UI `/settings/scheduler` or `PATCH … {enabled:false}` (token required) | Soft-disable (SQLite `scheduler.enabled`). Auto-loop no-ops; `POST /api/scheduler/tick` is refused (409) unless `?force=1`. |
 
 ## Boot
 
-`src/instrumentation.ts` starts the interval on Node server boot. The token-guarded `POST /tick` and `PATCH … {enabled:true}` also ensure the loop is alive (HMR-safe).
+`src/instrumentation.ts` arms the interval on Node server boot **only when `CALIBRA_SCHEDULER=1`**. The token-guarded
+`POST /tick` and `PATCH … {enabled:true}` also ensure the loop is alive (HMR-safe) — again only with the env opt-in.
+
+`GET /api/scheduler/status` reports `enabled` (configuration: env opt-in AND soft toggle) and `started` (the loop is
+actually armed in this server process) separately; `/settings/scheduler` shows both badges.
 
 Since B2.2 (23 Oct 2026) `GET /api/scheduler/status` and `GET /api/refresh` are **read-only**: no seed upserts, no
 dedupe cleanup, no `dataQuality` default, no `startScheduler()` re-arm, no jobs. They return 200 on an empty/unseeded

@@ -8,6 +8,7 @@ import { fmtTime } from "@/lib/format";
 
 interface SchedulerStatus {
   enabled: boolean;
+  started?: boolean;
   envAllowed: boolean;
   softEnabled: boolean;
   zurichNow: { label: string; isoDate: string; hour: number; minute: number };
@@ -112,15 +113,21 @@ export default function SchedulerSettingsPage() {
       <Panel
         title="Auto-refresh"
         right={
-          <Badge tone={status?.enabled ? "green" : "amber"}>
-            {status?.enabled ? "ENABLED" : "DISABLED"}
-          </Badge>
+          <span className="flex gap-1">
+            <Badge tone={status?.enabled ? "green" : "amber"}>
+              {status?.enabled ? "ENABLED" : "DISABLED"}
+            </Badge>
+            <Badge tone={status?.started ? "green" : "amber"}>
+              {status?.started ? "LOOP RUNNING" : "LOOP NOT STARTED"}
+            </Badge>
+          </span>
         }
       >
         <p className="text-2xs text-terminal-muted mb-3 leading-relaxed">
           In-app layered schedule while the Next server is up (~60s decision loop). Jobs only run when
           due — not a full Yahoo pull every minute. Session hours use Europe/Zurich.
-          Hard-disable: <code className="text-terminal-text">CALIBRA_SCHEDULER=0</code> then restart.
+          Opt-in: the loop is armed at boot only with <code className="text-terminal-text">CALIBRA_SCHEDULER=1</code>{" "}
+          (default off; restart required). &quot;Enabled&quot; is the configuration, &quot;loop running&quot; is this process.
         </p>
         <div className="flex flex-wrap gap-2 items-center">
           <button
@@ -145,7 +152,7 @@ export default function SchedulerSettingsPage() {
             {busy ? "Working…" : "Run tick now"}
           </button>
           {!status?.envAllowed && (
-            <span className="text-2xs text-terminal-amber">Env hard-disabled (CALIBRA_SCHEDULER=0)</span>
+            <span className="text-2xs text-terminal-amber">Env opt-in not set (CALIBRA_SCHEDULER≠1)</span>
           )}
         </div>
         {msg && <p className="text-2xs text-terminal-amber mt-2">{msg}</p>}

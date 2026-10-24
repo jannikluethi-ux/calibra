@@ -129,23 +129,26 @@ test("authorised but automation disabled (scheduler.enabled=0) → 409 for job t
   assert.equal(db.getMeta("scheduler.lastTick"), null, "tick did not run");
 });
 
-test("authorised + CALIBRA_SCHEDULER=0 (dev hard-disable): triggers 409, PATCH enable → 409 env message", async () => {
+test("authorised + CALIBRA_SCHEDULER not opted in (unset / 0 / junk): triggers 409, PATCH enable → 409 env message", async () => {
   process.env.CALIBRA_JOB_TOKEN = TOKEN;
-  process.env.CALIBRA_SCHEDULER = "0";
   try {
-    const { db, guard } = await ctx();
-    db.setMeta("scheduler.enabled", "1");
-    guard.resetJobGuardState();
-    const before = snapshotDb(db.getDb());
-    const tick = TRIGGERS[0];
-    const r1 = await (await tick.load())(req(tick, { authorization: `Bearer ${TOKEN}` }));
-    assert.equal(r1.status, 409);
-    const patch = TRIGGERS[1];
-    const r2 = await (await patch.load())(req(patch, { authorization: `Bearer ${TOKEN}` }, "", { enabled: true }));
-    assert.equal(r2.status, 409);
-    assert.match(((await r2.json()) as { error: string }).error, /CALIBRA_SCHEDULER=0/);
-    assert.deepEqual(snapshotDb(db.getDb()), before);
-    assert.equal(globalThis.__calibraSchedulerStarted, undefined);
+    for (const v of [undefined, "0", "yes"]) {
+      if (v === undefined) delete process.env.CALIBRA_SCHEDULER;
+      else process.env.CALIBRA_SCHEDULER = v;
+      const { db, guard } = await ctx();
+      db.setMeta("scheduler.enabled", "1");
+      guard.resetJobGuardState();
+      const before = snapshotDb(db.getDb());
+      const tick = TRIGGERS[0];
+      const r1 = await (await tick.load())(req(tick, { authorization: `Bearer ${TOKEN}` }));
+      assert.equal(r1.status, 409, `tick with CALIBRA_SCHEDULER=${v}`);
+      const patch = TRIGGERS[1];
+      const r2 = await (await patch.load())(req(patch, { authorization: `Bearer ${TOKEN}` }, "", { enabled: true }));
+      assert.equal(r2.status, 409);
+      assert.match(((await r2.json()) as { error: string }).error, /CALIBRA_SCHEDULER=1/);
+      assert.deepEqual(snapshotDb(db.getDb()), before);
+      assert.equal(globalThis.__calibraSchedulerStarted, undefined);
+    }
   } finally {
     delete process.env.CALIBRA_SCHEDULER;
   }

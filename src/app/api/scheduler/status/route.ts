@@ -7,7 +7,7 @@ import { startScheduler } from "@/lib/scheduler/boot";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/scheduler/status — next due, last runs, enabled flag.
+ * GET /api/scheduler/status — next due, last runs, `enabled` (configuration) and `started` (loop armed in this process).
  * Read-only (B2.2): no seeding, does not (re-)arm the in-process loop (that happens at boot in
  * src/instrumentation.ts or via the token-guarded PATCH/tick). Also used as the health probe by
  * scripts/ensure-prod.sh and scripts/uptime-check.sh.
@@ -18,7 +18,7 @@ export async function GET() {
 
 /**
  * PATCH /api/scheduler/status — soft enable/disable (persisted in SQLite).
- * Body: { enabled: boolean }. Env CALIBRA_SCHEDULER=0 always wins for auto-loop.
+ * Body: { enabled: boolean }. Enabling requires the env opt-in CALIBRA_SCHEDULER=1 (otherwise 409).
  * Requires `Authorization: Bearer $CALIBRA_JOB_TOKEN` (see lib/security/job-guard).
  */
 export async function PATCH(req: Request) {
@@ -33,7 +33,7 @@ export async function PATCH(req: Request) {
       if (body.enabled && !isEnvSchedulerAllowed()) {
         return NextResponse.json(
           {
-            error: "CALIBRA_SCHEDULER=0 — env hard-disable; unset or set to 1 and restart to enable",
+            error: "CALIBRA_SCHEDULER is not 1 — automation is opt-in; set CALIBRA_SCHEDULER=1 and restart to enable",
             status: getSchedulerStatus(),
           },
           { status: 409 }

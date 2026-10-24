@@ -106,13 +106,18 @@ function dueByInterval(lastIso: string | null, intervalMs: number, nowMs: number
 }
 
 /**
- * Env hard switch: CALIBRA_SCHEDULER=0 disables.
- * Default ON (especially in development). Soft toggle via meta scheduler.enabled.
+ * Env opt-in (B2 get-fix P6): automation is OFF unless CALIBRA_SCHEDULER is "1" / "true" / "on".
+ * Unset, "0", "false", "off" or anything else -> not allowed: the in-process loop is not armed at boot and
+ * guarded job triggers answer 409 unless ?force=1. The soft toggle (meta scheduler.enabled) applies on top.
  */
 export function isEnvSchedulerAllowed(): boolean {
-  const v = process.env.CALIBRA_SCHEDULER;
-  if (v === "0" || v === "false" || v === "off") return false;
-  return true; // unset, "1", "true", "on" → allowed
+  const v = (process.env.CALIBRA_SCHEDULER ?? "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "on";
+}
+
+/** True when the in-process loop has actually been armed in THIS process (independent of the enabled setting). */
+export function isSchedulerStarted(): boolean {
+  return globalThis.__calibraSchedulerStarted === true;
 }
 
 export function isSchedulerEnabled(): boolean {
@@ -341,7 +346,7 @@ export async function runSchedulerTick(opts?: { force?: boolean }): Promise<Tick
       quality: getMeta("dataQuality") || "insufficient",
       firedAlerts: 0,
       noteworthy: false,
-      summary: "Scheduler disabled (CALIBRA_SCHEDULER=0 or UI toggle off)",
+      summary: "Scheduler disabled (CALIBRA_SCHEDULER not set to 1, or UI toggle off)",
       details: {
         zurich: zurichNow(),
         inFastSession: inFastSession(zurichNow()),
@@ -487,8 +492,12 @@ export function getSchedulerStatus() {
   const z = zurichNow();
   const decision = decideDueJobs();
   return {
+    /** Configuration: env opt-in AND soft toggle. Does not mean the loop is running. */
     enabled: isSchedulerEnabled(),
+    /** Runtime: the in-process loop is armed in this server process. */
+    started: isSchedulerStarted(),
     envAllowed: isEnvSchedulerAllowed(),
+    envOptIn: "CALIBRA_SCHEDULER=1 arms the loop at boot (default off)",
     softEnabled: getMeta(META_ENABLED) !== "0" && getMeta(META_ENABLED) !== "false",
     zurichNow: {
       ...z,

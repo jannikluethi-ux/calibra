@@ -4,7 +4,7 @@
  * - Requires `Authorization: Bearer <CALIBRA_JOB_TOKEN>`; compared in constant time.
  * - Fails closed: if CALIBRA_JOB_TOKEN is unset, blank or shorter than MIN_TOKEN_LENGTH,
  *   every guarded trigger is refused with 503 and nothing runs.
- * - Honours the automation switch: while scheduler.enabled=0 or CALIBRA_SCHEDULER=0, an
+ * - Honours the automation switch: while scheduler.enabled=0 or CALIBRA_SCHEDULER is not 1 (opt-in), an
  *   authorised trigger is refused with 409 unless `?force=1` is passed (opt-out per route).
  * - In-process single-flight per job key (409 while running) and a minimum interval between
  *   accepted runs (CALIBRA_JOB_MIN_INTERVAL_S, default 30 s → 429 + Retry-After).
@@ -115,7 +115,7 @@ export async function runGuardedJob(
     if (!force && !isSchedulerEnabled()) {
       return deny(
         409,
-        "Automation is disabled (scheduler.enabled=0 or CALIBRA_SCHEDULER=0). Add ?force=1 to run this job manually."
+        "Automation is disabled (scheduler.enabled=0 or CALIBRA_SCHEDULER not set to 1). Add ?force=1 to run this job manually."
       );
     }
   }
