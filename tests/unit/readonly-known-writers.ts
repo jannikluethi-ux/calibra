@@ -4,10 +4,7 @@
  */
 export const KNOWN_WRITERS: Record<"empty" | "populated", Record<string, string>> = {
   empty: {
-    "GET /api/causal": "persists causal_graph when empty",
     "GET /api/crypto/high-risk": "source seeding",
-    "GET /api/digest": "persists risk_gauges when empty",
-    "GET /api/warnings": "persists warnings when empty",
   },
   populated: {
     "GET /api/instruments/[id]/series": "live provider fetch on GET",

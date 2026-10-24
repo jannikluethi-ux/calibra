@@ -951,8 +951,11 @@ export function persistCausalGraph(): CausalGraph {
   return g;
 }
 
+/**
+ * Read-only (B2 get-fix): returns the stored graph, or an empty graph (updatedAt "") when none is stored yet.
+ * The graph is built and stored only by persistCausalGraph() in the guarded refresh/derive jobs or the token-guarded
+ * POST /api/causal.
+ */
 export function getCausalGraph(): CausalGraph {
-  const g = getJsonById<CausalGraph>("causal_graph", "id", "current");
-  if (g) return g;
-  return persistCausalGraph();
+  return getJsonById<CausalGraph>("causal_graph", "id", "current") ?? { nodes: [], edges: [], updatedAt: "" };
 }

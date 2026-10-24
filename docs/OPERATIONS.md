@@ -208,6 +208,9 @@ transaction. Any DDL change must bump `SCHEMA_VERSION`; `tests/unit/schema-versi
 - Server pages never seed or persist. On an unseeded DB they render an **"Awaiting first run"** panel
   (`src/components/ui/AwaitingFirstRun.tsx`) instead of creating demo/seed rows; a fresh deploy therefore needs
   `npm run seed` (or the first token-guarded refresh) before pages show data.
+- `getRiskGauges()`, `getWarnings()` and `getCausalGraph()` are pure reads (empty list / empty graph when nothing is
+  stored). They are computed and stored only by the derive step of the guarded refresh/scheduler jobs or the
+  token-guarded `POST /api/risk`, `POST /api/warnings`, `POST /api/causal`.
 - No GET route seeds. Seed rows (demo events if `events` is empty, scenarios, forecasts, country profiles, default
   alerts, `dataQuality` default) are written only by `npm run seed` or the token-guarded `POST /api/refresh`,
   `POST /api/scheduler/tick`, `PATCH /api/scheduler/status` and `POST /api/forecasts/resolve`. Seeding is

@@ -231,8 +231,7 @@ export function persistWarnings(): WarningSignal[] {
   return warnings;
 }
 
+/** Read-only (B2 get-fix): stored warnings, [] when none yet. persistWarnings() runs only in guarded jobs / POST. */
 export function getWarnings(): WarningSignal[] {
-  const all = getJsonAll<WarningSignal>("warnings");
-  if (all.length === 0) return persistWarnings();
-  return all;
+  return getJsonAll<WarningSignal>("warnings");
 }

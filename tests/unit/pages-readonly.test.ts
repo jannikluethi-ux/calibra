@@ -73,8 +73,7 @@ test("on an empty DB the pages render the Awaiting first run element (and with d
 
   const tc = () => (db.prepare("SELECT total_changes() c").get() as { c: number }).c;
   const t0 = tc();
-  // map/warnings join this list in the getters commit (C6): getCausalGraph/getWarnings still persist when empty.
-  for (const rel of ["countries/page.tsx", "assets/page.tsx", "forecasts/page.tsx"]) {
+  for (const rel of ["countries/page.tsx", "map/page.tsx", "warnings/page.tsx", "assets/page.tsx", "forecasts/page.tsx"]) {
     assert.ok(has(await render(rel)), `${rel} shows Awaiting first run on an empty DB`);
   }
   assert.ok(has(await render("countries/[code]/page.tsx", { code: "US" })), "country detail on an empty DB");

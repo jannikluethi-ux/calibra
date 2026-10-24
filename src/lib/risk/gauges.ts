@@ -170,8 +170,7 @@ export function persistRiskGauges(): RiskGauge[] {
   return gauges;
 }
 
+/** Read-only (B2 get-fix): stored gauges, [] when none yet. persistRiskGauges() runs only in guarded jobs / POST. */
 export function getRiskGauges(): RiskGauge[] {
-  const stored = getJsonAll<RiskGauge>("risk_gauges");
-  if (stored.length) return stored;
-  return persistRiskGauges();
+  return getJsonAll<RiskGauge>("risk_gauges");
 }
