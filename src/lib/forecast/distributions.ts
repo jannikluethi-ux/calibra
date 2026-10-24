@@ -432,11 +432,12 @@ export function getForecasts(): Forecast[] {
   }));
 }
 
+/**
+ * Seed step (npm run seed / guarded refresh only — never a GET): build forecasts on an empty table.
+ * The former legacy status/horizon_end column backfill is the explicit one-off migration
+ * scripts/migrate-legacy-cleanup-v1.ts.
+ */
 export function ensureForecasts() {
-  const all = getForecasts();
-  if (all.length === 0) refreshForecasts();
-  // Migrate seed rows to have status/horizonEnd columns populated
-  for (const f of all.filter((x) => x.isSeed)) {
-    if (!f.status || !f.horizonEnd) persistForecast({ ...f, status: f.outcome ? "resolved" : "open" });
-  }
+  const row = getDb().prepare(`SELECT 1 AS ok FROM forecasts LIMIT 1`).get();
+  if (!row) refreshForecasts();
 }

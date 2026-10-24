@@ -6,18 +6,14 @@ import {
   deleteAlert,
   getFiredAlerts,
   evaluateAlerts,
-  ensureDefaultAlerts,
   getAlertOutbox,
 } from "@/lib/alerts/store";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
 import { getSessionUser, userPlanLimits } from "@/lib/auth/session";
 import type { AlertChannel } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  ensureSeedData();
-  ensureDefaultAlerts();
   return NextResponse.json({
     alerts: getAlerts(),
     fired: getFiredAlerts(),
@@ -27,7 +23,6 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  ensureSeedData();
   const body = await req.json();
   if (body.action === "evaluate") {
     return NextResponse.json({

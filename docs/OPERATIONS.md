@@ -203,3 +203,19 @@ transaction. Any DDL change must bump `SCHEMA_VERSION`; `tests/unit/schema-versi
 - Session lookup is read-only. Expired sessions resolve to "logged out" but their rows are **not** deleted on a
   request. Cleanup (`DELETE FROM sessions WHERE expires_at < now`) is deferred to a separately approved
   maintenance job; until then expired rows accumulate harmlessly (indexed by `idx_sessions_expires`).
+
+### Seeding and the one-off legacy cleanup
+- No GET route seeds. Seed rows (demo events if `events` is empty, scenarios, forecasts, country profiles, default
+  alerts, `dataQuality` default) are written only by `npm run seed` or the token-guarded `POST /api/refresh`,
+  `POST /api/scheduler/tick`, `PATCH /api/scheduler/status` and `POST /api/forecasts/resolve`. Seeding is
+  idempotent: a second `npm run seed` writes nothing.
+- Country profiles carry a fixed dataset date (`COUNTRY_PROFILES_DATASET_DATE`, 2026-09-27) instead of the
+  process start time, and `seedCountries()` rewrites a row only if its content differs. Bump the constant only
+  when the profile figures are revised.
+- The exact-title duplicate-event / duplicate-scenario cleanup (`eventDedupeCleanupV1`) and the legacy
+  `forecasts.status / horizon_end` column backfill (`forecastColumnsBackfillV1`) no longer run implicitly. They are
+  the explicit one-off `scripts/migrate-legacy-cleanup-v1.ts`:
+  `npx tsx scripts/migrate-legacy-cleanup-v1.ts --db <app>/data/gfi.db` (dry run, opened read-only), and
+  `CALIBRA_LEGACY_MIGRATION=1 ... --apply` to write. Both steps are meta-gated (`eventDedupeCleanupV1` already
+  ran on the live DB on 15 Oct 2026). **Do not run `--apply` against production without a separate explicit
+  approval and a verified backup** (`scripts/backup-db.py`).

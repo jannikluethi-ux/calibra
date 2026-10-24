@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { runGuardedJob } from "@/lib/security/job-guard";
-import { getForecasts, refreshForecasts, ensureForecasts } from "@/lib/forecast/distributions";
+import { getForecasts, refreshForecasts } from "@/lib/forecast/distributions";
 import { computeCalibration } from "@/lib/forecast/calibration";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
 import { getResolvePipelineStatus } from "@/lib/forecast/resolve";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  ensureSeedData();
-  ensureForecasts();
   const url = new URL(req.url);
   const cohort = (url.searchParams.get("cohort") as "live" | "seed" | "all") || "live";
   const forecasts = getForecasts();

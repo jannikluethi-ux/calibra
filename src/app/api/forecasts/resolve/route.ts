@@ -10,7 +10,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 export async function GET() {
-  ensureSeedData();
   return NextResponse.json({ pipeline: getResolvePipelineStatus(), historyPoints: countHistory() });
 }
 

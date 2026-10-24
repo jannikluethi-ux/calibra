@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { runGuardedJob } from "@/lib/security/job-guard";
-import { getScenarios, rebuildScenariosFromEvents, ensureScenarios, scenarioSchemaStatus } from "@/lib/scenarios/engine";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
+import { getScenarios, rebuildScenariosFromEvents, scenarioSchemaStatus } from "@/lib/scenarios/engine";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  ensureSeedData();
-  ensureScenarios();
   return NextResponse.json({ scenarios: getScenarios().map((s) => ({ ...s, schemaStatus: scenarioSchemaStatus(s) })) });
 }
 

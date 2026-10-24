@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { runGuardedJob } from "@/lib/security/job-guard";
 import { getCausalGraph, persistCausalGraph } from "@/lib/causal/graph";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  ensureSeedData();
   return NextResponse.json(getCausalGraph());
 }
 

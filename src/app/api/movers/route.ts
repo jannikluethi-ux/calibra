@@ -4,12 +4,10 @@ import {
   parseMoverSide,
   rankMovers,
 } from "@/lib/movers/rank";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  ensureSeedData();
   const url = new URL(req.url);
   const horizon = parseMoverHorizon(url.searchParams.get("horizon"));
   const side = parseMoverSide(url.searchParams.get("side"));

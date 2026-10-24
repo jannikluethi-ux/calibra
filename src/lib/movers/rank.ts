@@ -26,7 +26,6 @@ import { getMarketSnapshots } from "../market/fetch";
 import { getForecasts } from "../forecast/distributions";
 import { getScenarios } from "../scenarios/engine";
 import { getEvents } from "../ingestion/rss";
-import { ensureSeedData } from "../bootstrap/refresh";
 
 export type MoverHorizon = "intraday" | "1-7d" | "1-4w" | "1-3m";
 export type MoverSide = "up" | "down";
@@ -421,7 +420,6 @@ export function rankMovers(
   side: MoverSide = "up",
   limit = 10
 ): MoversResult {
-  ensureSeedData();
   const snaps = getMarketSnapshots();
   const forecasts = getForecasts();
   const scenarios = getScenarios();

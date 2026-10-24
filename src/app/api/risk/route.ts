@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { runGuardedJob } from "@/lib/security/job-guard";
 import { getRiskGauges, persistRiskGauges } from "@/lib/risk/gauges";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  ensureSeedData();
   return NextResponse.json({ gauges: getRiskGauges() });
 }
 

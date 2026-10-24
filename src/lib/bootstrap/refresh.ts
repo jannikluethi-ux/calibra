@@ -22,10 +22,6 @@ import { computeDataQualityLabel } from "../quality/summary";
 import { flagInvalidHistoryPrices } from "../quality/flags";
 import { runEventClustering } from "../ingestion/cluster";
 import { runOfficialRates } from "../sources/adapters/official-rates";
-import {
-  cleanupExactTitleDuplicateEvents,
-  cleanupDuplicateScenariosByEventId,
-} from "../ingestion/dedupe";
 
 export interface RefreshResult {
   ok: boolean;
@@ -385,23 +381,14 @@ export async function fullRefresh(): Promise<RefreshResult> {
   };
 }
 
+/**
+ * Explicit seed (B2.2 + get-fix): only `npm run seed`, guarded POST /api/refresh, guarded resolve/scheduler
+ * jobs. Never called from a GET route or page. Idempotent; the legacy duplicate-event/scenario cleanup that used to
+ * run here is now the explicit one-off scripts/migrate-legacy-cleanup-v1.ts.
+ */
 export function ensureSeedData() {
   getDb();
   ensureDemoEventsIfEmpty();
-  // One-shot light cleanup of exact title-duplicate events (re-ingest noise). Meta gate.
-  if (getMeta("eventDedupeCleanupV1") !== "done") {
-    try {
-      const ev = cleanupExactTitleDuplicateEvents();
-      const sc = cleanupDuplicateScenariosByEventId();
-      setMeta("eventDedupeCleanupV1", "done");
-      setMeta(
-        "eventDedupeCleanupV1Detail",
-        JSON.stringify({ at: new Date().toISOString(), ...ev, scenariosCollapsed: sc.deleted })
-      );
-    } catch {
-      /* non-fatal: ingestion dedupe still prevents new dupes */
-    }
-  }
   ensureScenarios();
   ensureForecasts();
   seedCountries();

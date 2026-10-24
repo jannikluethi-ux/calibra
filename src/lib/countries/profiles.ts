@@ -13,6 +13,13 @@ function mf(
 }
 
 /**
+ * Fixed vintage of the static profile dataset below (date the figures were compiled; unchanged since the initial
+ * publish 2026-09-27 23:22:50 +02:00). Bump ONLY when the profile content is revised. It used to be the process
+ * start time, which stamped static stubs as "fresh" and rewrote all 20 rows on every seed call.
+ */
+export const COUNTRY_PROFILES_DATASET_DATE = "2026-09-27T21:22:50.000Z";
+
+/**
  * Last-known public-figure stubs with dates + sources.
  * These are NOT live API pulls — labeled cached/demo for MVP where free APIs are limited.
  */
@@ -38,7 +45,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "SEC/CFTC/Fed/OCC oversight; banking and market structure reforms episodic.",
     marketImpact: "Global risk-free rate anchor, USD funding, equity beta driver for world markets.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "CN",
@@ -61,7 +68,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "Tech/property/finance regulatory cycles material for equities and FX.",
     marketImpact: "Commodity demand, EM risk, HSI/ADRs, global supply-chain sentiment.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "JP",
@@ -84,7 +91,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "Corporate governance reform narrative ongoing.",
     marketImpact: "JPY carry, Nikkei, global duration/liquidity spillovers.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "DE",
@@ -107,7 +114,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "EU-level financial and climate regulation overlays.",
     marketImpact: "DAX, EUR, European cyclicals; fiscal rules debate.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "GB",
@@ -130,7 +137,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "FCA/PRA regime; evolving post-Brexit framework.",
     marketImpact: "FTSE, GBP, gilts; global financial-centre spillovers.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "CH",
@@ -153,7 +160,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "FINMA; banking stability focus after 2023 events.",
     marketImpact: "CHF safe haven, SNB FX policy, European financial linkages.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "IN",
@@ -176,7 +183,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "RBI/SEBI; capital-flow management tools available.",
     marketImpact: "EM equity flows, INR, commodity importer profile.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "BR",
@@ -199,7 +206,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "BCB independence narrative watched by markets.",
     marketImpact: "BRL, local rates, commodity exporter beta.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "EU",
@@ -222,7 +229,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "ECB/ESMA/SSM banking union architecture.",
     marketImpact: "EUR, bunds, SX5E/DAX; global rates relativity vs Fed.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "FR",
@@ -245,7 +252,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "EU frameworks + AMF.",
     marketImpact: "CAC, OAT-bund spread, EUR sentiment.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "CA",
@@ -268,7 +275,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "OSFI/BoC financial stability focus.",
     marketImpact: "CAD, energy linkage, US beta.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "AU",
@@ -291,7 +298,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "APRA/RBA.",
     marketImpact: "AUD as risk/commodity FX; China beta.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "KR",
@@ -314,7 +321,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "FSC/FSS.",
     marketImpact: "KRW, tech cycle, China/US demand.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "MX",
@@ -337,7 +344,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "Banxico / CNBV.",
     marketImpact: "MXN carry, US manufacturing beta.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "IT",
@@ -360,7 +367,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "EU banking rules; national political risk premium.",
     marketImpact: "BTP-bund spread, EUR periphery sentiment.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "SA",
@@ -383,7 +390,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "CMA/SAMA; market opening ongoing.",
     marketImpact: "Oil supply diplomacy, energy risk premium.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "ZA",
@@ -406,7 +413,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "SARB/FSCA.",
     marketImpact: "ZAR high-beta EM FX; mining commodities.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "TR",
@@ -429,7 +436,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "CBRT / BDDK — credibility premium key.",
     marketImpact: "TRY, local rates, EM risk sentiment tail.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "AR",
@@ -452,7 +459,7 @@ const PROFILES: CountryProfile[] = [
     regulatory: "BCRA controls historically material.",
     marketImpact: "Idiosyncratic EM tail; limited global systemic weight vs G7.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
   {
     code: "ID",
@@ -475,27 +482,34 @@ const PROFILES: CountryProfile[] = [
     regulatory: "OJK/BI.",
     marketImpact: "IDR, nickel/coal linkage, EM Asia flows.",
     activeEvents: [],
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: COUNTRY_PROFILES_DATASET_DATE,
   },
 ];
 
-export function seedCountries() {
-  getDb();
+/**
+ * Seed/refresh the static profiles. Writes a row only when it is missing or its content differs, so repeated
+ * calls (npm run seed, guarded refresh, scheduler derive) are zero-write once the dataset is stored.
+ * Never called from a GET route or page.
+ */
+export function seedCountries(): { written: number } {
+  const db = getDb();
+  const current = db.prepare(`SELECT data, updated_at FROM countries WHERE code = ?`);
+  let written = 0;
   for (const p of PROFILES) {
+    const row = current.get(p.code) as { data: string; updated_at: string } | undefined;
+    if (row && row.data === JSON.stringify(p) && row.updated_at === p.lastUpdated) continue;
     upsertJson("countries", "code", p.code, p, { updated_at: p.lastUpdated });
+    written++;
   }
+  return { written };
 }
 
+/** Read-only. An unseeded DB returns [] (UI shows an "awaiting first run" state); seeding is `npm run seed`. */
 export function getCountries(): CountryProfile[] {
-  const all = getJsonAll<CountryProfile>("countries");
-  if (all.length === 0) {
-    seedCountries();
-    return getJsonAll<CountryProfile>("countries");
-  }
-  return all.sort((a, b) => a.name.localeCompare(b.name));
+  return getJsonAll<CountryProfile>("countries").sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** Read-only. */
 export function getCountry(code: string): CountryProfile | null {
-  getCountries();
   return getJsonById<CountryProfile>("countries", "code", code.toUpperCase());
 }

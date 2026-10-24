@@ -1,5 +1,4 @@
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
-import { getScenarios, ensureScenarios, scenarioSchemaStatus } from "@/lib/scenarios/engine";
+import { getScenarios, scenarioSchemaStatus } from "@/lib/scenarios/engine";
 import { requireApiKeyAuth, jsonWithProvenance } from "@/lib/api-keys/auth";
 
 export const dynamic = "force-dynamic";
@@ -7,8 +6,6 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const gate = requireApiKeyAuth(req);
   if (!gate.ok) return gate.response;
-  ensureSeedData();
-  ensureScenarios();
   const scenarios = getScenarios().map((s) => ({
     id: s.id,
     title: s.title,

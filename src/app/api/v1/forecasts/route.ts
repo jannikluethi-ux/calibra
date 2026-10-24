@@ -1,5 +1,4 @@
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
-import { getForecasts, ensureForecasts } from "@/lib/forecast/distributions";
+import { getForecasts } from "@/lib/forecast/distributions";
 import { requireApiKeyAuth, jsonWithProvenance } from "@/lib/api-keys/auth";
 
 export const dynamic = "force-dynamic";
@@ -7,8 +6,6 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const gate = requireApiKeyAuth(req);
   if (!gate.ok) return gate.response;
-  ensureSeedData();
-  ensureForecasts();
   const url = new URL(req.url);
   const includeSeed = url.searchParams.get("includeSeed") === "1";
   const forecasts = getForecasts()
