@@ -1,6 +1,5 @@
 import { getDb } from "../db";
 import { getInstrument, type InstrumentRow } from "../instruments/store";
-import { prepareCryptoStore } from "../sources/prepare";
 import { CONFIDENCE_FORMULA_TEXT, freshnessLabel } from "../sources/weights";
 import { cryptoTier, TIER_TEXT } from "./format";
 import { relatedInstruments } from "./resolve";
@@ -70,7 +69,6 @@ function decodeMaybe(id: string): string {
 }
 
 export function getResearch(rawId: string): ResearchPayload {
-  prepareCryptoStore();
   const id = decodeMaybe(rawId);
   const instrument = getInstrument(id);
   const emptyNews: ResearchPayload["news"] = [];

@@ -1,12 +1,10 @@
 import { getDb } from "../db";
-import { prepareCryptoStore } from "../sources/prepare";
 
 export const REGIME_RULE =
   "Regime uses only Bitcoin's stored 24h percent change (canonical change observation if one exists, otherwise the instrument column). If that input is missing, the regime is Insufficient data. If the absolute move is at least 8 percent, the label is high-volatility. Else if the move is at or below -3 percent, risk-off. Else if the move is at or above +3 percent, bullish. Otherwise neutral. This is a one-number rule, not a market-regime model.";
 
 export function cryptoOverview() {
-  prepareCryptoStore();
-  const db = getDb();
+  const db = getDb(); // read-only: no source seeding on reads (B2 get-fix)
   const indexed = (
     db.prepare(`SELECT COUNT(*) AS c FROM instruments WHERE asset_type = 'crypto'`).get() as { c: number }
   ).c;

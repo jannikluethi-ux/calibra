@@ -64,7 +64,7 @@ function loadSeries(db: ReturnType<typeof getDb>): Map<string, DailyPoint[]> {
 }
 
 export function buildAllInputs(nowIso: string): { inst: InstRow; inputs: RiskInputs }[] {
-  const db = prepareCryptoStore();
+  const db = getDb(); // pure read; also used by getRiskProfile (GET)
   const insts = db
     .prepare(
       `SELECT id, symbol, name, provider_id, price, market_cap, volume_24h, circulating_supply, total_supply, max_supply, change_7d_pct, change_30d_pct, last_updated, rank
@@ -218,7 +218,7 @@ export interface HighRiskRow {
 }
 
 export function listHighRisk(q: HighRiskQuery, nowIso = new Date().toISOString()) {
-  const db = prepareCryptoStore();
+  const db = getDb(); // read-only (B2 get-fix)
   const { where, params } = buildWhere(q, nowIso, STALE_MARKET_DATA_H);
   const base = `FROM crypto_risk_latest l JOIN instruments i ON i.id = l.instrument_id ${where}`;
   const total = (db.prepare(`SELECT COUNT(*) AS c ${base}`).get(...params) as { c: number }).c;
@@ -242,7 +242,7 @@ export function listHighRisk(q: HighRiskQuery, nowIso = new Date().toISOString()
 
 /** Facets for the filter UI: only values that exist in scored data are offered. */
 export function highRiskFacets() {
-  const db = prepareCryptoStore();
+  const db = getDb(); // read-only (B2 get-fix)
   const views = db.prepare(`SELECT risk_type, COUNT(*) AS c, SUM(high_risk) AS h FROM crypto_risk_latest GROUP BY risk_type`).all() as { risk_type: string; c: number; h: number }[];
   const bands = db.prepare(`SELECT band, COUNT(*) AS c FROM crypto_risk_latest GROUP BY band`).all() as { band: string; c: number }[];
   const categories = db
@@ -277,7 +277,7 @@ export interface RiskProfile {
 }
 
 export function getRiskProfile(instrumentId: string, nowIso = new Date().toISOString()): RiskProfile {
-  const db = prepareCryptoStore();
+  const db = getDb(); // read-only (B2 get-fix)
   const lat = db.prepare(`SELECT score_id, computed_at, market_data_at FROM crypto_risk_latest WHERE instrument_id = ?`).get(instrumentId) as
     | { score_id: number; computed_at: string; market_data_at: string | null }
     | undefined;

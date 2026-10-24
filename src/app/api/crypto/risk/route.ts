@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { prepareCryptoStore } from "@/lib/sources/prepare";
 import { INFO_RULE_TEXT, LIQUIDITY_RULE_TEXT, MOVE_RULE_TEXT, RISK_BAND_TEXT } from "@/lib/crypto/risk";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  prepareCryptoStore();
   const url = new URL(req.url);
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") || 20)));
   const db = getDb();

@@ -1,6 +1,5 @@
 import { randomUUID } from "crypto";
 import { getDb } from "../db";
-import { prepareCryptoStore } from "../sources/prepare";
 import { CONFIDENCE_FORMULA_TEXT, DISAGREEMENT_THRESHOLDS, RELIABILITY_WEIGHTS } from "../sources/weights";
 import { RISK_BAND_TEXT } from "./risk";
 
@@ -46,8 +45,7 @@ export interface CoveragePayload {
 }
 
 export function computeCoverage(): CoveragePayload {
-  prepareCryptoStore();
-  const db = getDb();
+  const db = getDb(); // read-only: no source seeding on reads (B2 get-fix)
   const one = (sql: string) => (db.prepare(sql).get() as { c: number }).c;
   const indexed = one(`SELECT COUNT(*) AS c FROM instruments WHERE asset_type = 'crypto'`);
   const live = one(

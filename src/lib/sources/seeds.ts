@@ -187,6 +187,11 @@ export function seedSources(db: Database.Database) {
       source_class = excluded.source_class,
       reliability_weight = excluded.reliability_weight,
       legal_notes = excluded.legal_notes
+    WHERE sources.name IS NOT excluded.name
+       OR sources.category IS NOT excluded.category
+       OR sources.source_class IS NOT excluded.source_class
+       OR sources.reliability_weight IS NOT excluded.reliability_weight
+       OR sources.legal_notes IS NOT excluded.legal_notes
   `);
   const tx = db.transaction(() => {
     for (const s of SOURCE_SEEDS) {

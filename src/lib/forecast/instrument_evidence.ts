@@ -8,7 +8,6 @@
  * events. This module only selects that view. It does not score scenarios.
  */
 import { getDb } from "../db";
-import { prepareCryptoStore } from "../sources/prepare";
 
 export interface InstrumentEvidenceRow {
   instrument_id: string;
@@ -40,7 +39,6 @@ export interface InstrumentEvidenceRow {
 }
 
 export function getInstrumentEvidence(instrumentId: string): InstrumentEvidenceRow | null {
-  prepareCryptoStore();
   const row = getDb()
     .prepare(`SELECT * FROM instrument_evidence WHERE instrument_id = ?`)
     .get(instrumentId) as InstrumentEvidenceRow | undefined;

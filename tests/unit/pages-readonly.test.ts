@@ -20,8 +20,7 @@ function pages(dir: string): string[] {
   return out;
 }
 
-// crypto/categories still calls prepareCryptoStore — removed in the crypto commit (C7) of this series.
-const PENDING: Record<string, string> = { "crypto/categories/page.tsx": "prepareCryptoStore (C7)" };
+const PENDING: Record<string, string> = {};
 
 test("no server page or layout seeds, persists or prepares stores", () => {
   const offenders: string[] = [];

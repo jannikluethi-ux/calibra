@@ -18,6 +18,7 @@ import { persistWarnings } from "../warnings/detect";
 import { ensureDefaultAlerts, evaluateAlerts } from "../alerts/store";
 import type { FiredAlert } from "../types";
 import { getMeta, setMeta, getDb } from "../db";
+import { seedSources } from "../sources/seeds";
 import { computeDataQualityLabel } from "../quality/summary";
 import { flagInvalidHistoryPrices } from "../quality/flags";
 import { runEventClustering } from "../ingestion/cluster";
@@ -387,7 +388,7 @@ export async function fullRefresh(): Promise<RefreshResult> {
  * run here is now the explicit one-off scripts/migrate-legacy-cleanup-v1.ts.
  */
 export function ensureSeedData() {
-  getDb();
+  seedSources(getDb()); // source registry rows (zero-write when unchanged); no provider calls
   ensureDemoEventsIfEmpty();
   ensureScenarios();
   ensureForecasts();

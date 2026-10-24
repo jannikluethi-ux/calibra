@@ -1,5 +1,4 @@
 import { getDb } from "../db";
-import { prepareCryptoStore } from "../sources/prepare";
 import type { InstrumentRow } from "../instruments/store";
 
 export interface ResolveCandidate {
@@ -27,7 +26,6 @@ export function resolveCryptoQuery(raw: string): {
   candidates: ResolveCandidate[];
   cryptoSectionLinkId: string | null;
 } {
-  prepareCryptoStore();
   const query = raw.trim().slice(0, 80);
   const normalized = query
     .replace(/\b(price|quote|market|usd)\b/gi, " ")

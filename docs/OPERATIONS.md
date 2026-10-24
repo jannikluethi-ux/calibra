@@ -215,6 +215,11 @@ transaction. Any DDL change must bump `SCHEMA_VERSION`; `tests/unit/schema-versi
   alerts, `dataQuality` default) are written only by `npm run seed` or the token-guarded `POST /api/refresh`,
   `POST /api/scheduler/tick`, `PATCH /api/scheduler/status` and `POST /api/forecasts/resolve`. Seeding is
   idempotent: a second `npm run seed` writes nothing.
+- Crypto read paths (overview, coverage, research, resolve, high-risk list/facets, risk profile, instrument
+  evidence, `GET /api/crypto/risk`, `/crypto/categories`) no longer call `prepareCryptoStore()`. The source
+  registry (`sources` rows) is seeded by `npm run seed` / the guarded refresh (`ensureSeedData`) and by the crypto
+  and official-rates sync jobs. `seedSources()` is zero-write when rows are unchanged and never touches an
+  operator's `enabled` flag.
 - Country profiles carry a fixed dataset date (`COUNTRY_PROFILES_DATASET_DATE`, 2026-09-27) instead of the
   process start time, and `seedCountries()` rewrites a row only if its content differs. Bump the constant only
   when the profile figures are revised.

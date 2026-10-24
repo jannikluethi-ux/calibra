@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { getDb } from "@/lib/db";
-import { prepareCryptoStore } from "@/lib/sources/prepare";
 import { Panel } from "@/components/ui/Panel";
 import { CryptoHeader } from "@/components/crypto/CryptoHeader";
 
 export const dynamic = "force-dynamic";
 
 export default function CryptoCategoriesPage() {
-  prepareCryptoStore();
   const rows = getDb()
     .prepare(
       `SELECT o.instrument_id, o.value_json
