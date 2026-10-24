@@ -1,11 +1,11 @@
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
-import { getScenarios, ensureScenarios } from "@/lib/scenarios/engine";
+import { getScenarios } from "@/lib/scenarios/engine";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { getSessionUser, userPlanLimits } from "@/lib/auth/session";
 import { UpgradeBanner } from "@/components/billing/UpgradeBanner";
 import Link from "next/link";
 import { ScenarioV2View, PreV2Badge, DqBadge } from "@/components/intel/ScenarioV2View";
+import { AwaitingFirstRun } from "@/components/ui/AwaitingFirstRun";
 
 export const dynamic = "force-dynamic";
 
@@ -65,8 +65,6 @@ function BranchCard({
 }
 
 export default function ScenariosPage() {
-  ensureSeedData();
-  ensureScenarios();
   const user = getSessionUser();
   const limits = userPlanLimits(user);
   const isFree = !user || user.plan === "free";
@@ -75,6 +73,7 @@ export default function ScenariosPage() {
 
   return (
     <div className="space-y-3">
+      {!all.length && <AwaitingFirstRun what="scenarios" />}
       <div>
         <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">Scenario Engine</h1>
         <p className="text-2xs text-terminal-muted mt-0.5">

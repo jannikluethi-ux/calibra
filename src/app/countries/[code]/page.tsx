@@ -1,17 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
-import { getCountry } from "@/lib/countries/profiles";
+import { getCountries, getCountry } from "@/lib/countries/profiles";
 import { getEvents } from "@/lib/ingestion/rss";
 import { Panel } from "@/components/ui/Panel";
 import { Badge, QualityBadge } from "@/components/ui/Badge";
+import { AwaitingFirstRun } from "@/components/ui/AwaitingFirstRun";
 
 export const dynamic = "force-dynamic";
 
 export default function CountryDetailPage({ params }: { params: { code: string } }) {
-  ensureSeedData();
   const country = getCountry(params.code);
-  if (!country) notFound();
+  if (!country) {
+    if (!getCountries().length) return <AwaitingFirstRun what="country profiles" />;
+    notFound();
+  }
   const events = getEvents(50).filter(
     (e) => e.country === country.code || e.title.toLowerCase().includes(country.name.toLowerCase().slice(0, 5))
   );

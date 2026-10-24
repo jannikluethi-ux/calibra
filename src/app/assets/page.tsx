@@ -1,20 +1,20 @@
 import Link from "next/link";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
 import { MARKET_UNIVERSE } from "@/lib/market/universe";
 import { getMarketSnapshots } from "@/lib/market/fetch";
 import { Panel } from "@/components/ui/Panel";
 import { QualityBadge } from "@/components/ui/Badge";
 import { changeColor, fmtNum, fmtPct } from "@/lib/format";
 import clsx from "clsx";
+import { AwaitingFirstRun } from "@/components/ui/AwaitingFirstRun";
 
 export const dynamic = "force-dynamic";
 
 export default function AssetsPage() {
-  ensureSeedData();
   const snaps = getMarketSnapshots();
 
   return (
     <div className="space-y-3">
+      {!snaps.length && <AwaitingFirstRun what="market snapshots" />}
       <div>
         <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">Asset Intelligence</h1>
         <p className="text-2xs text-terminal-muted mt-0.5">Tracked scenario set (about 21 symbols) with live Yahoo snapshots where available. Proxies labeled. The full universe is the <Link href="/explorer" className="text-terminal-accent">Market explorer</Link>.</p>

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
 import { getUniverseItem } from "@/lib/market/universe";
 import { getMarketSnapshot } from "@/lib/market/fetch";
 import { getEvents } from "@/lib/ingestion/rss";
@@ -14,7 +13,6 @@ import clsx from "clsx";
 export const dynamic = "force-dynamic";
 
 export default function AssetDetailPage({ params }: { params: { symbol: string } }) {
-  ensureSeedData();
   const sym = params.symbol.toUpperCase();
   const uni = getUniverseItem(sym);
   if (!uni) notFound();

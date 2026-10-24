@@ -1,5 +1,4 @@
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
-import { getEvents, ensureDemoEventsIfEmpty } from "@/lib/ingestion/rss";
+import { getEvents } from "@/lib/ingestion/rss";
 import { Panel } from "@/components/ui/Panel";
 import { Badge, QualityBadge } from "@/components/ui/Badge";
 import { fmtTime } from "@/lib/format";
@@ -8,6 +7,7 @@ import { getSessionUser, userPlanLimits } from "@/lib/auth/session";
 import { UpgradeBanner } from "@/components/billing/UpgradeBanner";
 import Link from "next/link";
 import { eventListBadges } from "@/lib/intel/store";
+import { AwaitingFirstRun } from "@/components/ui/AwaitingFirstRun";
 
 export const dynamic = "force-dynamic";
 
@@ -157,8 +157,6 @@ function EvidenceLayers({ e }: { e: FinancialEvent }) {
 }
 
 export default function EventsPage() {
-  ensureSeedData();
-  ensureDemoEventsIfEmpty();
   const user = getSessionUser();
   const limits = userPlanLimits(user);
   const isFree = !user || user.plan === "free";
@@ -167,6 +165,7 @@ export default function EventsPage() {
 
   return (
     <div className="space-y-3">
+      {!events.length && <AwaitingFirstRun what="events" />}
       <div>
         <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">Global Event Intelligence</h1>
         <p className="text-2xs text-terminal-muted mt-0.5">

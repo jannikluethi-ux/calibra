@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
 import { getOvernightDigest } from "@/lib/digest";
 import { ProvenanceChip, ageLabel } from "@/components/uncertainty/ProvenanceChip";
 import { MetricDelta } from "@/components/uncertainty/MetricDelta";
@@ -27,7 +26,6 @@ function publicMessage(m: string): string {
 }
 
 export default function DigestPage() {
-  ensureSeedData();
   const d = getOvernightDigest(12);
   return (
     <article className="mx-auto max-w-[720px] space-y-10 rise-in">

@@ -1,17 +1,16 @@
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
-import { getWarnings, persistWarnings } from "@/lib/warnings/detect";
+import { getWarnings } from "@/lib/warnings/detect";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { AwaitingFirstRun } from "@/components/ui/AwaitingFirstRun";
 
 export const dynamic = "force-dynamic";
 
 export default function WarningsPage() {
-  ensureSeedData();
-  let warnings = getWarnings();
-  if (!warnings.length) warnings = persistWarnings();
+  const warnings = getWarnings();
 
   return (
     <div className="space-y-3">
+      {!warnings.length && <AwaitingFirstRun what="early-warning signals" />}
       <div>
         <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">Early Warning Radar</h1>
         <p className="text-2xs text-terminal-muted mt-0.5">

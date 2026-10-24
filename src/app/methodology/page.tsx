@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { brand } from "@/lib/brand";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
-import { getForecasts, ensureForecasts } from "@/lib/forecast/distributions";
+import { getForecasts } from "@/lib/forecast/distributions";
 import { computeCalibration } from "@/lib/forecast/calibration";
 import { normalizeForecast } from "@/lib/forecast/resolve";
 import { DisclaimerStrip } from "@/components/billing/UpgradeBanner";
@@ -35,8 +34,6 @@ function sampleCaveat(n: number): { tone: string; text: string } {
 }
 
 export default function MethodologyPage() {
-  ensureSeedData();
-  ensureForecasts();
   const forecasts = getForecasts().map(normalizeForecast);
   const live = computeCalibration(forecasts, "live");
   const seed = computeCalibration(forecasts, "seed");

@@ -1,18 +1,18 @@
 import Link from "next/link";
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
 import { getCountries } from "@/lib/countries/profiles";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { CountriesSearch } from "@/components/countries/Search";
+import { AwaitingFirstRun } from "@/components/ui/AwaitingFirstRun";
 
 export const dynamic = "force-dynamic";
 
 export default function CountriesPage() {
-  ensureSeedData();
   const countries = getCountries();
 
   return (
     <div className="space-y-3">
+      {!countries.length && <AwaitingFirstRun what="country profiles" />}
       <div>
         <h1 className="text-sm font-semibold uppercase tracking-wide text-terminal-dim">Country Intelligence</h1>
         <p className="text-2xs text-terminal-muted mt-0.5">

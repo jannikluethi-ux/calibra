@@ -1,12 +1,11 @@
-import { ensureSeedData } from "@/lib/bootstrap/refresh";
-import { getRiskGauges, persistRiskGauges } from "@/lib/risk/gauges";
+import { getRiskGauges } from "@/lib/risk/gauges";
 import { getMarketSnapshots } from "@/lib/market/fetch";
 import { getEvents } from "@/lib/ingestion/rss";
 import { getWarnings } from "@/lib/warnings/detect";
 import { getScenarios } from "@/lib/scenarios/engine";
 import { getMeta } from "@/lib/db";
 import { getOvernightDigest } from "@/lib/digest";
-import { getForecasts, ensureForecasts } from "@/lib/forecast/distributions";
+import { getForecasts } from "@/lib/forecast/distributions";
 import { computeCalibration } from "@/lib/forecast/calibration";
 import { MarketCards } from "@/components/dashboard/MarketCards";
 import { MoversBoard } from "@/components/dashboard/MoversBoard";
@@ -20,6 +19,7 @@ import { brand } from "@/lib/brand";
 import { normalizeEventTitle } from "@/lib/ingestion/dedupe";
 import { universeSymbolMatchesScenarioAsset } from "@/lib/market/scenarioSymbols";
 import Link from "next/link";
+import { AwaitingFirstRun } from "@/components/ui/AwaitingFirstRun";
 
 export const dynamic = "force-dynamic";
 
@@ -48,9 +48,7 @@ function SectionHead({ title, href, linkLabel, chip }: { title: string; href?: s
 }
 
 export default function TodayPage() {
-  ensureSeedData();
-  let gauges = getRiskGauges();
-  if (!gauges.length) gauges = persistRiskGauges();
+  const gauges = getRiskGauges();
   const markets = getMarketSnapshots();
   const events = getEvents(6);
   const warnings = getWarnings().slice(0, 4);
@@ -70,7 +68,6 @@ export default function TodayPage() {
   const initialMovers = rankMovers("1-4w", "up", 10);
   const digest = safe(() => getOvernightDigest(12), null);
   const calib = safe(() => {
-    ensureForecasts();
     return computeCalibration(getForecasts(), "live");
   }, null);
 
@@ -104,6 +101,7 @@ export default function TodayPage() {
 
   return (
     <div className="space-y-10">
+      {!markets.length && !events.length && !gauges.length && <AwaitingFirstRun what="market, event or risk data" />}
       {/* Hero */}
       <section className="grid grid-cols-1 lg:grid-cols-[1.05fr_1fr] gap-8 items-start pt-2 rise-in">
         <div>
