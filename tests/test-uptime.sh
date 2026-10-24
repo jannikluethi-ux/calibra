@@ -47,7 +47,7 @@ echo sched404 >"$W/mode"; o="$("$REPO/scripts/uptime-check.sh")"; echo "$o"
 check "sched 404 -> DOWN, scheduler_http=404, dataQuality=unavailable, lastTick ''" test "$(jf "$o" '["status"]'),$(jf "$o" '["scheduler_http"]'),$(jf "$o" '["dataQuality"]'),$(jf "$o" '["lastTick"]')" = "DOWN,404,unavailable,"
 echo up >"$W/mode"; "$REPO/scripts/uptime-check.sh" >/dev/null
 echo stale >"$W/mode"; o="$("$REPO/scripts/uptime-check.sh")"
-check "stale tick (45 min) -> DOWN" test "$(jf "$o" '["status"]')" = "DOWN"
+check "stale tick (45 min), status lacks enabled/started -> UP, scheduler UNKNOWN, no alert (B2.3: never DOWN)" test "$(jf "$o" '["status"]')/$(jf "$o" '["scheduler_state"]')/$(jf "$o" '["notify"]')" = "UP/UNKNOWN/none"
 echo "== detail with commas/quotes/newlines"
 echo weird >"$W/mode"; o="$("$REPO/scripts/uptime-check.sh")"; echo "$o"
 python3 - "$W/u/uptime-log.csv" <<'PY' && ok "weird detail round-trips via csv module (9 fields)" || ko "weird detail round-trips"
@@ -73,9 +73,12 @@ check "overlap: rc 75, SKIPPED, no row" bash -c "[ $rc -eq 75 ] && [ '$(jf "$o" 
 wait $HOLDER
 echo "== heartbeat notify in uptime-check after a gap"
 python3 - "$W/u/uptime-state.json" <<'PY'
-import json,sys; p=sys.argv[1]; s=json.load(open(p)); s["last_check_at"]=s["lastCheck"]="2026-01-01T00:00:00+01:00"; json.dump(s,open(p,"w"))
+import json,sys; p=sys.argv[1]; s=json.load(open(p)); s["last_check_at"]=s["lastCheck"]="2026-01-01T00:00:00+01:00"
+for k in ("last_check_mono_s","last_check_boot_id"): s.pop(k,None)   # legacy state: wall gap only
+json.dump(s,open(p,"w"))
 PY
 o="$("$REPO/scripts/uptime-check.sh")"; check "UP after gap -> notify=heartbeat" test "$(jf "$o" '["notify"]')" = "heartbeat"
+check "unexplained gap -> observation GAP" test "$(jf "$o" '["observation"]')" = "GAP"
 echo "== monitor-heartbeat.sh"
 NOW=$(date +%s)
 HB() { HEARTBEAT_NOW_EPOCH="$1" "$REPO/scripts/monitor-heartbeat.sh"; }
