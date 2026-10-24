@@ -210,6 +210,15 @@ upgraded in place on first open, existing rows untouched).
   `CALIBRA_SERIES_TIMEOUT_MS` (default 10000). Timeout / provider error / empty result -> **503**, cache untouched.
 - No scheduler job prefetches series yet; until an operator (or a later approved job) prefetches, instrument charts are empty.
 
+### Intended writes on GET (public v1 API accounting)
+The only writes any GET request performs, kept on purpose and tested separately (`tests/unit/v1-accounting.test.ts`):
+- `GET /api/v1/*` with a valid, unrevoked key: `UPDATE api_keys SET last_used` (no other column changes).
+- If the call is within the plan's per-minute limit: insert/increment that minute's `api_rate_limits` row.
+  Over the limit -> 429, counter not incremented (only `last_used`). Missing/invalid/revoked key -> 401, no write.
+- Old `api_rate_limits` windows are not pruned on request (one row per key per active minute); pruning, if wanted,
+  belongs to a later approved maintenance job.
+The read-only harness probes v1 without a key (401, zero writes).
+
 ### Auth data hygiene
 - Demo accounts are never created or re-hashed on a request. Explicit, insert-only, opt-in:
   `CALIBRA_DEMO_USERS=1 npm run provision:demo-users`.

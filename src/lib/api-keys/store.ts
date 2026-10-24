@@ -106,6 +106,11 @@ export interface ApiKeyAuthResult {
   rateLimitPerMinute: number;
 }
 
+/**
+ * INTENTIONAL write on GET (B2 get-fix, approved): a valid key updates `api_keys.last_used`.
+ * Together with checkRateLimit() this is the only write any GET request performs; see
+ * tests/unit/v1-accounting.test.ts and docs/OPERATIONS.md "Intended writes on GET".
+ */
 export function authenticateApiKey(rawKey: string): ApiKeyAuthResult | null {
   if (!rawKey || !rawKey.startsWith("calibra_")) return null;
   const hash = hashKey(rawKey);
@@ -127,7 +132,7 @@ export function authenticateApiKey(rawKey: string): ApiKeyAuthResult | null {
   };
 }
 
-/** Simple per-minute rate limit stored in SQLite */
+/** Simple per-minute rate limit stored in SQLite. INTENTIONAL write on GET (allowed calls increment `api_rate_limits`). */
 export function checkRateLimit(keyId: string, limitPerMinute: number): {
   allowed: boolean;
   remaining: number;
