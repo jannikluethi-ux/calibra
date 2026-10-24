@@ -139,6 +139,11 @@ Tests: `bash tests/test-monitor-loop.sh`.
 python3 scripts/backup-db.py --label before-change   # -> ../calibra-backups/gfi-<UTC>-<label>.db(.gz) + .json manifest
 ```
 Exit 0 only when integrity_check = ok and row counts are consistent. Always take one before schema/ingestion changes or deploys.
+`backup-db.py` covers the DB only. The monitor/notification state lives outside the repo (`/workspace/calibra-stabilization`);
+any backup or restore of it must copy all three outbox files together, under the outbox lock
+(`flock notify-outbox.jsonl.lock`): `notify-outbox.jsonl`, `notify-outbox.delivered.jsonl` **and**
+`notify-outbox.voided.jsonl` (B1s4). Restoring the outbox without the voided sidecar would resurrect voided entries
+as pending.
 
 ### Deploy (used for Batch 1)
 ```
@@ -193,7 +198,7 @@ routes and pages, empty and populated throwaway DBs, repeated requests, with/wit
 
 ### Schema step (versioned)
 All DDL lives in pure schema modules applied once per DB open by `src/lib/db/schema.ts`
-(`PRAGMA user_version`, `SCHEMA_VERSION = 1`). An up-to-date DB gets zero writes on open. The first open of an
+(`PRAGMA user_version`, `SCHEMA_VERSION = 2`). An up-to-date DB gets zero writes on open. The first open of an
 existing (user_version 0) DB after deploy applies `CREATE ... IF NOT EXISTS` / additive `ALTER` once, in one
 transaction. Any DDL change must bump `SCHEMA_VERSION`; `tests/unit/schema-version.test.ts` pins the schema.
 
@@ -252,3 +257,20 @@ The read-only harness probes v1 without a key (401, zero writes).
   `CALIBRA_LEGACY_MIGRATION=1 ... --apply` to write. Both steps are meta-gated (`eventDedupeCleanupV1` already
   ran on the live DB on 15 Oct 2026). **Do not run `--apply` against production without a separate explicit
   approval and a verified backup** (`scripts/backup-db.py`).
+
+### Scheduler opt-in
+- The in-process loop is armed at boot only when `CALIBRA_SCHEDULER=1` (or `true`/`on`). Unset / `0` / anything else =
+  off; `.env.example` now ships `CALIBRA_SCHEDULER=0`. Guarded job triggers answer 409 while automation is off unless
+  `?force=1`; `PATCH /api/scheduler/status {enabled:true}` answers 409 without the env opt-in.
+- `GET /api/scheduler/status` reports `enabled` (configuration: env opt-in AND soft toggle `scheduler.enabled`) and
+  `started` (loop armed in this process) separately; `/settings/scheduler` shows both.
+
+### Deploy sequence (prepared, NOT executed — needs separate explicit approval)
+1. `python3 scripts/backup-db.py --label pre-b2-getfix` + copy of the outbox triplet (above) + copy of the live `.next`.
+2. Set `CALIBRA_JOB_TOKEN` (>= 32 chars) in the prod env; leave `CALIBRA_SCHEDULER` unset unless automation is approved.
+3. Build + restart via `scripts/ensure-prod.sh --build --override-maintenance` inside a maintenance window.
+4. First DB open applies the schema step once (user_version 0 -> 2, additive only). Production already has seed data;
+   `npm run seed` is needed only on a fresh DB. Do **not** run `migrate-legacy-cleanup-v1.ts --apply`.
+5. Rollback: stop prod, restore the saved `.next` (or check out 6f9d484 and rebuild), restart. The additive schema
+   (`instrument_series_cache`, `user_version` 2) is harmless to the old build; restore the DB backup only if required.
+
