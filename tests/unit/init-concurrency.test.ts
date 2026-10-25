@@ -30,7 +30,7 @@ function runWorkers(dir: string, modes: string[], startInMs: number) {
     modes.map(
       (m) =>
         new Promise<{ code: number | null; out: string }>((resolve) => {
-          const env = { ...process.env, RACE_START_AT: String(startAt) };
+          const env: NodeJS.ProcessEnv = { ...process.env, RACE_START_AT: String(startAt) };
           for (const k of ["CALIBRA_JOB_TOKEN", "CALIBRA_SCHEDULER", "CALIBRA_DEMO_USERS"]) delete env[k];
           const p = spawn(TSX, [WORKER, m], { cwd: dir, env, stdio: ["ignore", "pipe", "pipe"] });
           let out = "";

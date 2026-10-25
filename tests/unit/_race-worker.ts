@@ -22,6 +22,6 @@ async function main() {
   console.log(JSON.stringify({ mode, pid: process.pid, late_ms: t0 - startAt, user_version: uv }));
 }
 main().catch((e) => {
-  console.log(JSON.stringify({ error: String((e as Error)?.message ?? e), code: (e as { code?: string })?.code }));
+  console.log(JSON.stringify({ error: String((e as Error)?.message ?? e), code: (e as { code?: string })?.code, at: String((e as Error)?.stack ?? "").split("\n").slice(1, 6).map((l) => l.trim()) }));
   process.exit(1);
 });
