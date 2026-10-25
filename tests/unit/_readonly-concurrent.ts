@@ -26,6 +26,7 @@ export function runConcurrentSuite(fixture: "empty" | "populated", rounds = Numb
     const targets = discoverTargets();
     const probes = probesFor(ctx);
     const variants = variantsFor(ctx);
+    assert.deepEqual(targets.filter((x) => !probes[x.id]).map((x) => x.id), [], "every discovered target needs a probe config");
     const jobs = targets.flatMap((t) => (probes[t.id] ?? []).flatMap((p) => variants.map((v) => ({ t, p, v }))));
     assert.ok(jobs.length >= targets.length, "every target is fired");
 
