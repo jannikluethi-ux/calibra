@@ -283,6 +283,19 @@ The read-only harness probes v1 without a key (401, zero writes).
   ran on the live DB on 15 Oct 2026). **Do not run `--apply` against production without a separate explicit
   approval and a verified backup** (`scripts/backup-db.py`).
 
+### Calibra 2.0 Phase 1 — explicit migrate, race-safe initialization
+- `npm run migrate` applies the versioned schema step and prints `{from, to, expected, created, tables}`;
+  `npm run migrate:check` is read-only (never creates the DB file) and exits 0 = current, 1 = missing/behind,
+  2 = DB newer than this code (do not run older code against it). Both are idempotent and safe to re-run.
+- The schema step on DB open is kept as a safety net: it writes nothing when `user_version` is current and runs in a
+  `BEGIN IMMEDIATE` transaction that re-checks the version, so concurrent openers apply it exactly once.
+- `ensureSeedData()` (used by `npm run seed` and the token-guarded POST/job paths) now runs as one `BEGIN IMMEDIATE`
+  transaction: concurrent seeders can no longer insert duplicate demo events or default alerts, and a failed seed rolls
+  back completely. Concurrent writers wait up to `busy_timeout` (10 s, now set before the WAL switch); the WAL switch on a
+  brand-new file is retried within the same budget.
+- GET routes and server pages remain read-only; the only intended GET writes are the v1 API-key accounting
+  (`api_keys.last_used`, `api_rate_limits`). Full matrix: docs/calibra2/phase1-disposition-matrix.csv.
+
 ### Scheduler opt-in
 - The in-process loop is armed at boot only when `CALIBRA_SCHEDULER=1` (or `true`/`on`). Unset / `0` / anything else =
   off; `.env.example` now ships `CALIBRA_SCHEDULER=0`. Guarded job triggers answer 409 while automation is off unless
@@ -294,8 +307,10 @@ The read-only harness probes v1 without a key (401, zero writes).
 1. `python3 scripts/backup-db.py --label pre-b2-getfix` + copy of the outbox triplet (above) + copy of the live `.next`.
 2. Set `CALIBRA_JOB_TOKEN` (>= 32 chars) in the prod env; leave `CALIBRA_SCHEDULER` unset unless automation is approved.
 3. Build + restart via `scripts/ensure-prod.sh --build --override-maintenance` inside a maintenance window.
-4. First DB open applies the schema step once (user_version 0 -> 2, additive only). Production already has seed data;
-   `npm run seed` is needed only on a fresh DB. Do **not** run `migrate-legacy-cleanup-v1.ts --apply`.
+4. Run `npm run migrate:check`, then `npm run migrate` explicitly before (or right after) the restart; it applies the
+   schema step once (user_version 0 -> 2, additive only) and is a no-op when current. The first DB open still applies
+   the same step as a safety net if this is skipped. Production already has seed data; `npm run seed` is needed only on
+   a fresh DB. Do **not** run `migrate-legacy-cleanup-v1.ts --apply`.
 5. Rollback: stop prod, restore the saved `.next` (or check out 6f9d484 and rebuild), restart. The additive schema
    (`instrument_series_cache`, `user_version` 2) is harmless to the old build; restore the DB backup only if required.
 

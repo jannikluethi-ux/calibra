@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start -p 3456",
     "lint": "next lint",
+    "migrate": "npx tsx scripts/migrate.ts",
+    "migrate:check": "npx tsx scripts/migrate.ts --check",
     "seed": "npx tsx scripts/seed.ts",
     "provision:demo-users": "npx tsx scripts/provision-demo-users.ts",
     "reclassify": "npx tsx scripts/reclassify-v2.ts",

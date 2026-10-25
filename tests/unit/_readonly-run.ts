@@ -6,10 +6,10 @@
 import "./_readonly-harness"; // spies first
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { useTempDb } from "./_tmpdb";
-import { discoverTargets, loadClientComponentSet, probe, summarize, networkAttempts, type Target, type Variant, type TargetResult } from "./_readonly-harness";
+import { REPO, discoverTargets, loadClientComponentSet, probe, summarize, networkAttempts, type Target, type Variant, type TargetResult } from "./_readonly-harness";
 import { buildEmptyFixture, buildPopulatedFixture, FAKE_TOKEN, type FixtureCtx } from "./_readonly-fixtures";
 import { KNOWN_WRITERS } from "./readonly-known-writers";
 
@@ -73,6 +73,11 @@ export function probesFor(c: FixtureCtx): Record<string, Probe[]> {
     "PAGE /crypto/[id]/page": [{ url: "/crypto/bitcoin", params: { id: "bitcoin" } }],
     "PAGE /crypto/assets/page": [{ url: "/crypto/assets" }],
     "PAGE /crypto/categories/page": [{ url: "/crypto/categories" }],
+    // Committed on main, but deleted (uncommitted) in the live working tree; probed whenever the file exists so the
+    // suite passes — and covers the page — in both states (Calibra 2.0 Phase 1).
+    ...(existsSync(join(REPO, "src", "app", "crypto", "coverage", "page.tsx"))
+      ? { "PAGE /crypto/coverage/page": [{ url: "/crypto/coverage" }] }
+      : {}),
     "PAGE /crypto/high-risk/page": [{ url: "/crypto/high-risk" }],
     "PAGE /crypto/methodology/page": [{ url: "/crypto/methodology" }],
     "PAGE /crypto/page": [{ url: "/crypto" }],

@@ -108,7 +108,7 @@ Since B2.2 (23 Oct 2026) `GET /api/scheduler/status` and `GET /api/refresh` are 
 dedupe cleanup, no `dataQuality` default, no `startScheduler()` re-arm, no jobs. They return 200 on an empty/unseeded
 DB (zero counts, `dataQuality: "insufficient"`). Seeding happens only in authorised `POST /api/refresh`,
 `POST /api/scheduler/tick`, `PATCH /api/scheduler/status`, `POST /api/forecasts/resolve` or `npm run seed` (`scripts/seed.ts`, added in B2.2 — the npm script previously pointed at a missing file). Since the B2 get-fix no other GET route or page seeds either, and the legacy dedupe cleanup is the explicit `scripts/migrate-legacy-cleanup-v1.ts` (see docs/OPERATIONS.md). (Opening the DB in a new process
-runs the versioned schema step once — see `src/lib/db/schema.ts`.)
+runs the versioned schema step once — see `src/lib/db/schema.ts`; `npm run migrate` runs it explicitly.)
 
 ## Files
 

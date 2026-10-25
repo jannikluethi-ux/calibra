@@ -12,11 +12,32 @@ export function getDb(): Database.Database {
   if (dbInstance) return dbInstance;
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   dbInstance = new Database(DB_PATH);
-  dbInstance.pragma("journal_mode = WAL");
-  dbInstance.pragma("foreign_keys = ON");
+  // busy_timeout first: switching a fresh DB to WAL needs a lock, and a concurrent opener (app + `npm run migrate`
+  // / `npm run seed`) must wait for it instead of failing with SQLITE_BUSY (Calibra 2.0 Phase 1).
   dbInstance.pragma("busy_timeout = 10000");
+  enableWal(dbInstance);
+  dbInstance.pragma("foreign_keys = ON");
   runSchemaStep(dbInstance); // centralized, versioned schema step — the only place DDL runs
   return dbInstance;
+}
+
+/**
+ * Switch to WAL. On a brand-new file this needs an exclusive lock, and SQLite can report SQLITE_BUSY for the journal-mode
+ * change without consulting busy_timeout when another process is creating/switching the same DB at that moment. Retry
+ * briefly (bounded by the same 10 s budget) instead of failing; on an existing WAL database this is a no-op first try.
+ */
+function enableWal(db: Database.Database, budgetMs = 10_000) {
+  const deadline = Date.now() + budgetMs;
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (;;) {
+    try {
+      db.pragma("journal_mode = WAL");
+      return;
+    } catch (e) {
+      if ((e as { code?: string })?.code !== "SQLITE_BUSY" || Date.now() >= deadline) throw e;
+      Atomics.wait(pause, 0, 0, 20);
+    }
+  }
 }
 
 export function getMeta(key: string): string | null {

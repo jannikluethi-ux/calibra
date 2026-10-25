@@ -388,13 +388,19 @@ export async function fullRefresh(): Promise<RefreshResult> {
  * run here is now the explicit one-off scripts/migrate-legacy-cleanup-v1.ts.
  */
 export function ensureSeedData() {
-  seedSources(getDb()); // source registry rows (zero-write when unchanged); no provider calls
-  ensureDemoEventsIfEmpty();
-  ensureScenarios();
-  ensureForecasts();
-  seedCountries();
-  ensureDefaultAlerts();
-  if (!getMeta("dataQuality")) setMeta("dataQuality", "demo");
+  const db = getDb();
+  // One IMMEDIATE transaction: the "insert only if empty" checks below and their inserts are serialized across
+  // processes, so concurrent `npm run seed` / POST /api/refresh / scheduler ticks never duplicate seed rows
+  // (Calibra 2.0 Phase 1, tests/unit/init-concurrency.test.ts). All steps are synchronous and network-free.
+  db.transaction(() => {
+    seedSources(db); // source registry rows (zero-write when unchanged); no provider calls
+    ensureDemoEventsIfEmpty();
+    ensureScenarios();
+    ensureForecasts();
+    seedCountries();
+    ensureDefaultAlerts();
+    if (!getMeta("dataQuality")) setMeta("dataQuality", "demo");
+  }).immediate();
 }
 
 /**

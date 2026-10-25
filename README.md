@@ -31,6 +31,8 @@ GET routes and pages are read-only: they never create tables beyond the one-time
 never provision demo users and never start jobs. On a fresh DB the UI shows **"Awaiting first run"** until you initialize:
 
 ```bash
+npm run migrate:check                          # read-only: exit 0 current, 1 missing/behind, 2 DB newer than code
+npm run migrate                                # idempotent, additive schema step (user_version 2); safe to re-run
 npm run seed                                   # idempotent: source registry, scenarios, forecasts, country profiles, default alerts
 CALIBRA_DEMO_USERS=1 npm run provision:demo-users   # optional, local/demo DBs only (insert-only, never re-hashes)
 ```
@@ -39,7 +41,9 @@ CALIBRA_DEMO_USERS=1 npm run provision:demo-users   # optional, local/demo DBs o
   is opt-in (`CALIBRA_SCHEDULER=1`).
 - The legacy duplicate cleanup / forecast-column backfill is a one-off explicit migration
   (`npx tsx scripts/migrate-legacy-cleanup-v1.ts --db data/gfi.db`, dry run by default) — not for production without approval.
-- Details: docs/OPERATIONS.md, "B2 get-fix".
+- `migrate` and `seed` are safe to run concurrently with each other and with a running app (they serialize on the
+  SQLite write lock; Calibra 2.0 Phase 1). `seed` also applies the schema step if `migrate` was skipped.
+- Details: docs/OPERATIONS.md, "B2 get-fix" and "Calibra 2.0 Phase 1"; docs/calibra2/phase1-read-path.md.
 
 ## Demo accounts (local)
 
