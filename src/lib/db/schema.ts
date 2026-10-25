@@ -53,11 +53,15 @@ export function runSchemaStep(db: Database.Database): SchemaStepResult {
     }
     return { from, to: from, applied: false };
   }
-  db.transaction(() => {
+  // BEGIN IMMEDIATE takes the write lock up front (waiting via busy_timeout), then re-checks the version under the
+  // lock: when several processes open an old/fresh DB at once, exactly one applies the step and the others no-op.
+  const applied = db.transaction(() => {
+    if (getSchemaVersion(db) >= SCHEMA_VERSION) return false;
     applySchema(db);
     db.pragma(`user_version = ${SCHEMA_VERSION}`);
-  })();
-  return { from, to: SCHEMA_VERSION, applied: true };
+    return true;
+  }).immediate();
+  return { from, to: applied ? SCHEMA_VERSION : getSchemaVersion(db), applied };
 }
 
 function columnNames(db: Database.Database, table: string): string[] {
