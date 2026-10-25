@@ -44,7 +44,7 @@ export interface RecEvent {
   kind: EventKind;
   detail: string;
 }
-const rec = { active: false, events: [] as RecEvent[] };
+export const rec = { active: false, events: [] as RecEvent[] };
 function push(kind: EventKind, detail: string) {
   if (rec.active) rec.events.push({ kind, detail: detail.replace(/\s+/g, " ").trim().slice(0, 160) });
 }
